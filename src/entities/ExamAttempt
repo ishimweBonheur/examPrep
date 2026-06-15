@@ -1,0 +1,79 @@
+{
+  "name": "ExamAttempt",
+  "type": "object",
+  "properties": {
+    "student_id": {
+      "type": "string",
+      "description": "Reference to user"
+    },
+    "subject_id": {
+      "type": "string",
+      "description": "Reference to subject"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "practice",
+        "mock_exam"
+      ],
+      "description": "Type of attempt"
+    },
+    "topic": {
+      "type": "string",
+      "description": "Topic if practice mode"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string"
+          },
+          "question_text": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "selected_answer": {
+            "type": "string"
+          },
+          "correct_answer": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "is_correct": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "score": {
+      "type": "number",
+      "description": "Score percentage"
+    },
+    "total_questions": {
+      "type": "number"
+    },
+    "correct_count": {
+      "type": "number"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "time_taken_seconds": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "student_id",
+    "type"
+  ]
+}
