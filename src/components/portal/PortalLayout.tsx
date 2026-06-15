@@ -12,8 +12,10 @@ export default function PortalLayout() {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col">
       <PortalHeader />
-      <main className="flex-1 px-4 py-6 sm:px-6 max-w-5xl mx-auto w-full">
-        <Outlet />
+      <main className="flex-1 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-8 py-6">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

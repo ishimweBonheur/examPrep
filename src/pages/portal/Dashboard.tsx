@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
-import { Target, BookOpen, Brain, ArrowRight, Flame } from 'lucide-react'
+import { Target, BookOpen, Brain, ArrowRight, Flame, Trophy, Clock, Calendar, Zap } from 'lucide-react'
 import type { ExamAttempt } from '@/types'
 
 const quickActions = [
@@ -14,6 +15,8 @@ const quickActions = [
     desc: 'Topic-based questions',
     iconColor: 'text-blue-500',
     light: 'bg-blue-50',
+    borderColor: 'hover:border-blue-200',
+    gradient: 'from-blue-500 to-blue-600',
   },
   {
     to: '/dashboard/mock-exam',
@@ -22,6 +25,8 @@ const quickActions = [
     desc: 'Full exam simulation',
     iconColor: 'text-green-500',
     light: 'bg-green-50',
+    borderColor: 'hover:border-green-200',
+    gradient: 'from-green-500 to-green-600',
   },
   {
     to: '/dashboard/ai-tutor',
@@ -30,7 +35,15 @@ const quickActions = [
     desc: 'Get instant help',
     iconColor: 'text-purple-500',
     light: 'bg-purple-50',
+    borderColor: 'hover:border-purple-200',
+    gradient: 'from-purple-500 to-purple-600',
   },
+]
+
+const subjects = [
+  { name: 'Biology', progress: 75, color: 'bg-green-500', questions: 120 },
+  { name: 'Chemistry', progress: 45, color: 'bg-blue-500', questions: 95 },
+  { name: 'Entrepreneurship', progress: 60, color: 'bg-amber-500', questions: 80 },
 ]
 
 function getGreeting(): string {
@@ -40,10 +53,19 @@ function getGreeting(): string {
   return 'Good evening'
 }
 
+function getMotivationalMessage(avgScore: number, streak: number): string {
+  if (streak >= 7) return "You're on fire! 🔥 Keep the streak going!"
+  if (avgScore >= 80) return "Excellent work! You're mastering the material!"
+  if (avgScore >= 60) return "You're making great progress. Keep pushing!"
+  return "Every session makes you better. Start practicing!"
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState('overview')
+  const [hoveredAction, setHoveredAction] = useState(null)
 
-  const { data: attempts = [] } = useQuery<ExamAttempt[]>({
+  const { data: attempts = [], isLoading } = useQuery<ExamAttempt[]>({
     queryKey: ['exam-attempts'],
     queryFn: () => base44.entities.ExamAttempt.filter({ student_id: user?.id }, '-created_date', 50),
     enabled: !!user?.id,
@@ -53,109 +75,289 @@ export default function Dashboard() {
   const avgScore = completed.length
     ? Math.round(completed.reduce((s, a) => s + (a.score || 0), 0) / completed.length)
     : 0
-  const recent = completed.slice(0, 4)
+  const recent = completed.slice(0, 5)
   const firstName = user?.full_name?.split(' ')[0] ?? 'Student'
+  const todayAttempts = completed.filter(a => {
+    const today = new Date()
+    const attemptDate = new Date(a.created_date)
+    return attemptDate.toDateString() === today.toDateString()
+  })
 
   return (
     <div className="space-y-6">
-      {/* Welcome card */}
-      <div className="bg-white rounded-3xl border border-border shadow-sm p-6 md:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <p className="text-muted-foreground text-sm capitalize">{getGreeting()},</p>
-            <h1 className="font-heading font-extrabold text-2xl md:text-3xl text-foreground mt-0.5">
-              {firstName} 👋
-            </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              {completed.length > 0
-                ? `You've completed ${completed.length} sessions with ${avgScore}% average score.`
-                : 'Start practicing to track your progress.'}
-            </p>
-          </div>
-          {user?.study_streak ? (
-            <div className="flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2 rounded-2xl self-start">
-              <Flame className="w-4 h-4" />
-              <span className="text-sm font-semibold">{user.study_streak} day streak</span>
+      {/* Welcome card with gradient */}
+      <div className="relative bg-gradient-to-br from-primary via-primary/95 rounded-lg shadow-lg shadow-primary/10 overflow-hidden animate-fadeInUp">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+        
+        <div className="relative p-6 md:p-8 text-white">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-3">
+              <div>
+                <p className="text-white/80 text-sm font-medium">{getGreeting()},</p>
+                <h1 className="font-heading font-extrabold text-2xl md:text-3xl lg:text-4xl mt-1">
+                  {firstName} 👋
+                </h1>
+              </div>
+              <p className="text-white/90 text-sm md:text-base max-w-md">
+                {getMotivationalMessage(avgScore, user?.study_streak || 0)}
+              </p>
+              
+              {/* Quick Stats */}
+              <div className="flex flex-wrap gap-3 mt-4">
+                {user?.study_streak ? (
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-sm">
+                    <Flame className="w-4 h-4 text-amber-300" />
+                    <span className="text-sm font-bold">{user.study_streak} Day Streak</span>
+                  </div>
+                ) : null}
+                {completed.length > 0 && (
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-sm">
+                    <Trophy className="w-4 h-4 text-yellow-300" />
+                    <span className="text-sm font-bold">{avgScore}% Avg Score</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-sm">
+                  <Target className="w-4 h-4 text-green-300" />
+                  <span className="text-sm font-bold">{todayAttempts.length} Today</span>
+                </div>
+              </div>
             </div>
-          ) : null}
+
+            {/* Streak Card */}
+            {user?.study_streak ? (
+              <div className="bg-white/15 backdrop-blur-sm rounded-sm p-4 lg:p-6 text-center border border-white/20">
+                <div className="text-3xl lg:text-4xl font-black mb-1">{user.study_streak}</div>
+                <div className="text-xs lg:text-sm font-medium text-white/80">Day Streak</div>
+                <div className="mt-2 text-[10px] lg:text-xs text-white/60">
+                  {user.study_streak >= 7 ? 'Amazing!' : 'Keep going!'}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div>
-        <h2 className="font-heading font-bold text-foreground mb-4">Start Learning</h2>
+      {/* Quick actions with hover effects */}
+      <div className="animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading font-bold text-lg text-foreground">Start Learning</h2>
+          <Link to="/dashboard/subjects" className="text-sm text-primary font-medium hover:underline flex items-center gap-1">
+            All Subjects <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
         <div className="grid sm:grid-cols-3 gap-4">
-          {quickActions.map((action) => (
+          {quickActions.map((action, index) => (
             <Link key={action.to} to={action.to}>
-              <div className="bg-white rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full">
-                <div className={`w-11 h-11 ${action.light} rounded-xl flex items-center justify-center mb-4`}>
-                  <action.icon className={`w-5 h-5 ${action.iconColor}`} />
+              <div 
+                className={`bg-card rounded-sm border-2 p-5 shadow-sm transition-all duration-300 group cursor-pointer
+                  ${action.borderColor}
+                  ${hoveredAction === index ? 'shadow-lg scale-105 -translate-y-1' : 'border-border hover:shadow-md'}
+                `}
+                onMouseEnter={() => setHoveredAction(index)}
+                onMouseLeave={() => setHoveredAction(null)}
+              >
+                <div className={`w-12 h-12 ${action.light} rounded-sm flex items-center justify-center mb-4 transition-transform duration-300
+                  ${hoveredAction === index ? 'scale-110 rotate-3' : 'group-hover:scale-110'}`}>
+                  <action.icon className={`w-6 h-6 ${action.iconColor}`} />
                 </div>
-                <p className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                <p className="font-bold text-foreground group-hover:text-primary transition-colors">
                   {action.label}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{action.desc}</p>
+                
+                {/* Progress indicator */}
+                <div className={`mt-3 transition-all duration-300 ${hoveredAction === index ? 'opacity-100 max-h-20' : 'opacity-0 max-h-0 overflow-hidden'}`}>
+                  <div className="flex items-center gap-2 text-xs text-primary font-medium">
+                    <Zap className="w-3 h-3" />
+                    <span>Start now</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </div>
+                </div>
               </div>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* Recent activity */}
-      <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden">
+      {/* Subject Progress */}
+      <div className="animate-fadeInUp" style={{ animationDelay: '200ms' }}>
+        <h2 className="font-heading font-bold text-lg text-foreground mb-4">Your Subjects</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {subjects.map((subject,) => (
+            <div 
+              key={subject.name} 
+              className="bg-card rounded-sm border border-border p-5 shadow-sm hover:shadow-md transition-all duration-300 hover:border-primary/30"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-foreground text-sm">{subject.name}</h3>
+                <span className="text-xs text-muted-foreground">{subject.questions} Q's</span>
+              </div>
+              <div className="w-full bg-muted rounded-sm h-2 overflow-hidden mb-2">
+                <div 
+                  className={`h-full rounded-sm transition-all duration-1000 ${subject.color}`}
+                  style={{ width: `${subject.progress}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Progress</span>
+                <span className="text-xs font-bold text-foreground">{subject.progress}%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent activity with tabs */}
+      <div className="bg-card rounded-sm border border-border shadow-sm overflow-hidden animate-fadeInUp" style={{ animationDelay: '300ms' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="font-heading font-bold text-foreground">Recent Activity</h2>
-          <Link
-            to="/dashboard/results"
-            className="text-sm text-primary font-medium flex items-center gap-1 hover:underline"
-          >
-            View All <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex items-center gap-4">
+            <h2 className="font-heading font-bold text-foreground">Recent Activity</h2>
+            <div className="flex gap-1 bg-muted rounded-sm p-1">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-3 py-1 rounded-sm text-xs font-medium transition-all ${
+                  activeTab === 'overview' 
+                    ? 'bg-primary text-primary-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setActiveTab('practice')}
+                className={`px-3 py-1 rounded-sm text-xs font-medium transition-all ${
+                  activeTab === 'practice' 
+                    ? 'bg-primary text-primary-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Practice
+              </button>
+              <button
+                onClick={() => setActiveTab('exam')}
+                className={`px-3 py-1 rounded-sm text-xs font-medium transition-all ${
+                  activeTab === 'exam' 
+                    ? 'bg-primary text-primary-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Exams
+              </button>
+            </div>
+          </div>
+          {completed.length > 0 && (
+            <Link
+              to="/dashboard/results"
+              className="text-sm text-primary font-medium flex items-center gap-1 hover:underline"
+            >
+              View All <ArrowRight className="w-3 h-3" />
+            </Link>
+          )}
         </div>
 
-        {recent.length === 0 ? (
+        {isLoading ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-muted-foreground text-sm mb-4">No sessions yet. Pick a subject and start practicing!</p>
+            <div className="animate-pulse space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-muted rounded-sm" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted rounded-sm w-3/4" />
+                    <div className="h-3 bg-muted rounded-sm w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-sm flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-primary" />
+            </div>
+            <p className="text-muted-foreground text-sm mb-2">No sessions yet</p>
+            <p className="text-xs text-muted-foreground mb-4">Pick a subject and start practicing!</p>
             <Link to="/dashboard/practice">
-              <Button className="rounded-xl">Start Practice</Button>
+              <Button className="rounded-sm shadow-md shadow-primary/20 hover:shadow-lg transition-all">
+                Start Your First Practice
+              </Button>
             </Link>
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {recent.map((attempt, i) => (
-              <div key={attempt.id ?? i} className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    attempt.type === 'practice' ? 'bg-blue-50' : 'bg-green-50'
-                  }`}>
-                    {attempt.type === 'practice' ? (
-                      <Target className="w-4 h-4 text-blue-500" />
-                    ) : (
-                      <BookOpen className="w-4 h-4 text-green-500" />
-                    )}
+            {recent
+              .filter(attempt => {
+                if (activeTab === 'practice') return attempt.type === 'practice'
+                if (activeTab === 'exam') return attempt.type === 'mock_exam'
+                return true
+              })
+              .map((attempt, i) => (
+                <div 
+                  key={attempt.id ?? i} 
+                  className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-sm flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${
+                      attempt.type === 'practice' ? 'bg-blue-50' : 'bg-green-50'
+                    }`}>
+                      {attempt.type === 'practice' ? (
+                        <Target className="w-4 h-4 text-blue-500" />
+                      ) : (
+                        <BookOpen className="w-4 h-4 text-green-500" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-foreground capitalize truncate">
+                        {attempt.type === 'mock_exam' ? 'Mock Exam' : 'Practice'}
+                        {attempt.topic ? ` · ${attempt.topic}` : ''}
+                      </p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>{attempt.correct_count}/{attempt.total_questions} correct</span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {attempt.duration ? `${Math.floor(attempt.duration / 60)}m` : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm text-foreground capitalize truncate">
-                      {attempt.type === 'mock_exam' ? 'Mock Exam' : 'Practice'}
-                      {attempt.topic ? ` · ${attempt.topic}` : ''}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {attempt.correct_count}/{attempt.total_questions} correct
-                    </p>
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
+                    <span
+                      className={`font-bold text-sm ${
+                        (attempt.score ?? 0) >= 80 ? 'text-green-600' 
+                        : (attempt.score ?? 0) >= 60 ? 'text-amber-600' 
+                        : 'text-red-600'
+                      }`}
+                    >
+                      {attempt.score ?? 0}%
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </div>
-                <span
-                  className={`font-bold text-sm shrink-0 ml-3 ${
-                    (attempt.score ?? 0) >= 70 ? 'text-green-600' : 'text-amber-600'
-                  }`}
-                >
-                  {attempt.score ?? 0}%
-                </span>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fadeInUp {
+          animation: fadeInUp 0.6s ease-out forwards;
+          opacity: 0;
+        }
+      `}</style>
     </div>
   )
 }

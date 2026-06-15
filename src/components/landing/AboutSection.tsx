@@ -1,6 +1,5 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function AboutSection() {
@@ -41,15 +40,14 @@ export default function AboutSection() {
               'Join a community of learners and get help from teachers',
             ].map((text: string, i: number) => (
               <div key={i} className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-secondary mt-0.5 shrink-0" />
                 <p className="text-sm text-muted-foreground">{text}</p>
               </div>
             ))}
           </div>
 
           <Link to="/register">
-            <Button className="mt-8 bg-primary hover:bg-primary/90 rounded-full px-8 shadow-lg shadow-primary/25">
-              Get Started <ArrowRight className="w-4 h-4 ml-2" />
+            <Button className="mt-8 bg-primary hover:bg-primary/90 rounded-sm px-8 shadow-lg shadow-primary/25">
+              Get Started 
             </Button>
           </Link>
         </div>

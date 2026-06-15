@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { GraduationCap, Menu, X, Phone, Mail, Clock } from 'lucide-react'
+import { GraduationCap, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navLinks = [
@@ -15,8 +15,10 @@ const navLinks = [
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    'text-sm font-medium transition-colors',
-    isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+    'text-sm font-medium transition-colors duration-200 px-3 py-2 rounded-md',
+    isActive 
+      ? 'text-primary bg-gray-100' 
+      : 'text-muted-foreground hover:text-primary hover:bg-gray-50'
   )
 
 export default function Navbar() {
@@ -26,93 +28,101 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="bg-primary text-primary-foreground text-sm py-2">
-        <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-4 flex-wrap">
-            <span className="flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5" /> +250 788 000 000
-            </span>
-            <span className="flex items-center gap-1.5 hidden sm:flex">
-              <Mail className="w-3.5 h-3.5" /> info@examprep.rw
-            </span>
-            <span className="flex items-center gap-1.5 hidden md:flex">
-              <Clock className="w-3.5 h-3.5" /> Mon - Sat: 7:00 - 18:00
-            </span>
+      {/* Floating Navbar Container */}
+      <div className="fixed top-4 left-0 right-0 z-50 px-4 md:px-8">
+        <nav className="max-w-7xl mx-auto bg-white rounded-2xl shadow-lg border border-gray-100 px-4 py-3 md:px-6 md:py-3.5">
+          <div className="flex items-center justify-between">
+            
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
+                <GraduationCap className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-heading font-extrabold text-lg text-foreground tracking-tight leading-tight">
+                  ExamPrep<span className="text-primary"></span>
+                </span>
+            
+              </div>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <NavLink 
+                  key={link.to} 
+                  to={link.to} 
+                  end={link.end} 
+                  className={navLinkClass}
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden lg:flex items-center gap-3">
+              <Link to="/login">
+                <Button variant="outline" size="sm" className="rounded-lg">
+                  Login
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button size="sm" className="bg-primary hover:bg-primary/90 rounded-lg px-6 transition-all hover:scale-105 shadow-md hover:shadow-lg">
+                  Get Started →
+                </Button>
+              </Link>
+            </div>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              type="button"
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/login" className="hover:underline">Login</Link>
-            <span>/</span>
-            <Link to="/register" className="hover:underline">Register</Link>
-          </div>
-        </div>
+
+          {/* Mobile Navigation */}
+          {mobileOpen && (
+            <div className="lg:hidden mt-4 pt-4 border-t border-gray-100 animate-in slide-in-from-top-2 fade-in duration-200">
+              <div className="space-y-1">
+                {navLinks.map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.end}
+                    onClick={closeMobile}
+                    className={({ isActive }) =>
+                      cn(
+                        'block px-4 py-3 rounded-lg text-sm font-medium transition-all',
+                        isActive 
+                          ? 'text-primary bg-gray-100' 
+                          : 'text-muted-foreground hover:text-primary hover:bg-gray-50'
+                      )
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Link to="/login" className="flex-1" onClick={closeMobile}>
+                  <Button variant="outline" className="w-full rounded-lg">Login</Button>
+                </Link>
+                <Link to="/register" className="flex-1" onClick={closeMobile}>
+                  <Button className="w-full bg-primary hover:bg-primary/90 rounded-lg">Register</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+        </nav>
       </div>
-
-      <nav className="bg-white sticky top-0 z-50 shadow-sm border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
-            <span className="font-heading font-extrabold text-xl text-foreground tracking-tight">
-              ExamPrep<span className="text-primary">.rw</span>
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <NavLink key={link.to} to={link.to} end={link.end} className={navLinkClass}>
-                {link.label}
-              </NavLink>
-            ))}
-          </div>
-
-          <div className="hidden md:flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="outline" size="sm">Login</Button>
-            </Link>
-            <Link to="/register">
-              <Button size="sm" className="bg-primary hover:bg-primary/90 rounded-full px-6">
-                Get Started →
-              </Button>
-            </Link>
-          </div>
-
-          <button
-            type="button"
-            className="md:hidden"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-          >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {mobileOpen && (
-          <div className="md:hidden bg-white border-t border-border px-4 py-4 space-y-1">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.end}
-                onClick={closeMobile}
-                className={({ isActive }) =>
-                  cn('block text-sm font-medium py-2.5', isActive ? 'text-primary' : 'text-foreground')
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-            <div className="flex gap-2 pt-3">
-              <Link to="/login" className="flex-1" onClick={closeMobile}>
-                <Button variant="outline" className="w-full">Login</Button>
-              </Link>
-              <Link to="/register" className="flex-1" onClick={closeMobile}>
-                <Button className="w-full">Register</Button>
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
+      
+      {/* Spacer to prevent content from being hidden behind fixed navbar */}
+      <div className="h-20 md:h-24" />
     </>
   )
 }

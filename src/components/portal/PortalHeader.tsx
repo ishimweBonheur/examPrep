@@ -1,8 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import {
-  GraduationCap, LogOut, Menu, X, Bell, User, Settings,
-} from 'lucide-react'
+import { GraduationCap, Bell, Menu, X, LogOut, User, Settings, HelpCircle } from 'lucide-react'
 import { base44 } from '@/api/client'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
@@ -16,7 +14,7 @@ const mainNav = [
 ]
 
 const moreNav = [
-  { to: '/dashboard/progress', label: 'Progress' },
+  { to: '/dashboard/progress', label: 'Progress', badge: 'New' },
   { to: '/dashboard/results', label: 'Results' },
   { to: '/dashboard/community', label: 'Community' },
   { to: '/dashboard/messages', label: 'Messages' },
@@ -26,119 +24,383 @@ const moreNav = [
 
 export default function PortalHeader() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [notificationCount] = useState(3)
   const location = useLocation()
   const { user } = useAuth()
+  
+  // Refs for dropdown containers
+  const moreMenuRef = useRef(null)
+  const profileMenuRef = useRef(null)
 
-  const handleLogout = () => base44.auth.logout('/')
+  const handleLogout = () => {
+    setShowProfileMenu(false)
+    setMobileOpen(false)
+    base44.auth.logout('/')
+  }
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close More menu if clicking outside
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
+        setShowMoreMenu(false)
+      }
+      // Close Profile menu if clicking outside
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false)
+      }
+    }
+
+    // Close dropdowns when route changes
+    setShowMoreMenu(false)
+    setShowProfileMenu(false)
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [location.pathname])
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
+  // Close mobile menu on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setMobileOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
     cn(
-      'px-4 py-2 rounded-full text-sm font-medium transition-colors',
+      'relative px-3 lg:px-4 py-2 rounded-sm text-sm font-semibold transition-all duration-200 whitespace-nowrap',
       isActive
-        ? 'bg-primary text-white'
-        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+        : 'text-foreground hover:bg-primary/10 hover:text-primary'
+    )
+
+  const mobileNavClass = (path: string) =>
+    cn(
+      'block px-4 py-3 rounded-sm text-sm font-semibold transition-all duration-200',
+      location.pathname === path
+        ? 'bg-primary text-primary-foreground shadow-sm'
+        : 'text-foreground hover:bg-muted'
     )
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
-      <div className="max-w-5xl mx-auto px-4">
-        <div className="flex items-center justify-between h-14 gap-4">
-          <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <GraduationCap className="w-4 h-4 text-white" />
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-2 border-primary/10 shadow-sm">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+        <div className="flex items-center justify-between h-14 lg:h-16">
+          {/* Logo */}
+          <Link 
+            to="/dashboard" 
+            className="flex items-center gap-2 lg:gap-3 shrink-0 group"
+          >
+            <div className="w-8 h-8 lg:w-10 lg:h-10 bg-primary rounded-sm flex items-center justify-center shadow-md shadow-primary/20 group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
+              <GraduationCap className="w-4 h-4 lg:w-5 lg:h-5 text-primary-foreground" />
             </div>
-            <span className="font-heading font-bold text-foreground hidden sm:block">
-              ExamPrep
-            </span>
+            <div className="hidden sm:block">
+              <span className="font-heading font-extrabold text-lg lg:text-xl text-foreground leading-tight">
+                ExamPrep
+              </span>
+             
+            </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-1">
             {mainNav.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
+              <NavLink 
+                key={item.to} 
+                to={item.to} 
+                end={item.end} 
+                className={navClass}
+              >
                 {item.label}
+                {item.end && location.pathname === '/dashboard' && (
+                  <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-secondary rounded-sm" />
+                )}
               </NavLink>
             ))}
+            
+            {/* More Dropdown */}
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                onClick={() => {
+                  setShowMoreMenu(!showMoreMenu)
+                  setShowProfileMenu(false)
+                }}
+                className={cn(
+                  'px-3 lg:px-4 py-2 rounded-sm text-sm font-semibold transition-all duration-200',
+                  showMoreMenu
+                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                    : 'text-foreground hover:bg-primary/10 hover:text-primary'
+                )}
+              >
+                More ▾
+              </button>
+
+              {showMoreMenu && (
+                <div className="absolute right-0 mt-2 w-52 bg-white rounded-sm shadow-xl border-2 border-primary/10 z-20 py-2 animate-slideDown">
+                  {moreNav.map((item) => (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setShowMoreMenu(false)}
+                      className={cn(
+                        'flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors',
+                        location.pathname === item.to
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : 'text-foreground hover:bg-muted'
+                      )}
+                    >
+                      <span>{item.label}</span>
+                      {item.badge && (
+                        <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-sm">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                  <div className="border-t border-border mt-2 pt-2">
+                    <Link
+                      to="/dashboard/help"
+                      onClick={() => setShowMoreMenu(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      <span>Help Center</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
           </nav>
 
-          <div className="hidden md:flex items-center gap-2 shrink-0">
+          {/* Right Side Actions */}
+          <div className="hidden lg:flex items-center gap-2 lg:gap-3 shrink-0">
+            {/* Notifications */}
             <Link
               to="/dashboard/notifications"
-              className={cn(
-                'p-2 rounded-full transition-colors',
-                location.pathname === '/dashboard/notifications'
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted'
-              )}
+              className="relative p-2 lg:p-2.5 rounded-sm transition-all duration-200 hover:bg-primary/10 group"
               aria-label="Notifications"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              {notificationCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 lg:w-5 lg:h-5 bg-red-500 text-white text-[10px] lg:text-xs font-bold rounded-sm flex items-center justify-center shadow-sm">
+                  {notificationCount}
+                </span>
+              )}
             </Link>
-            <Link
-              to="/dashboard/profile"
-              className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full hover:bg-muted transition-colors"
-            >
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
-                {user?.full_name?.split(' ')[0] ?? 'Student'}
-              </span>
-            </Link>
+
+            {/* Profile Dropdown */}
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                onClick={() => {
+                  setShowProfileMenu(!showProfileMenu)
+                  setShowMoreMenu(false)
+                }}
+                className={cn(
+                  'flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 lg:py-2 rounded-sm transition-all duration-200 border-2',
+                  showProfileMenu
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'border-transparent hover:bg-muted hover:border-primary/20 text-foreground'
+                )}
+              >
+                <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-sm bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-sm">
+                  <span className="text-white text-xs lg:text-sm font-bold">
+                    {user?.full_name?.charAt(0)?.toUpperCase() || 'S'}
+                  </span>
+                </div>
+                <div className="hidden xl:block text-left">
+                  <span className="text-xs lg:text-sm font-bold text-foreground block leading-tight max-w-[80px] lg:max-w-[100px] truncate">
+                    {user?.full_name?.split(' ')[0] ?? 'Student'}
+                  </span>
+                  <span className="text-[10px] lg:text-xs text-primary font-medium">S3 Student</span>
+                </div>
+                <span className="text-[10px] lg:text-xs ml-0.5 lg:ml-1">▾</span>
+              </button>
+
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-48 lg:w-56 bg-white rounded-sm shadow-xl border-2 border-primary/10 z-20 py-2 animate-slideDown">
+                  {/* User Info */}
+                  <div className="px-4 py-3 border-b border-border">
+                    <p className="text-xs lg:text-sm font-bold text-foreground">
+                      {user?.full_name || 'Student Name'}
+                    </p>
+                    <p className="text-[10px] lg:text-xs text-muted-foreground truncate">
+                      {user?.email || 'student@example.com'}
+                    </p>
+                  </div>
+
+                  {/* Profile Links */}
+                  <Link
+                    to="/dashboard/profile"
+                    onClick={() => setShowProfileMenu(false)}
+                    className="flex items-center gap-3 px-4 py-2 lg:py-2.5 text-xs lg:text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    <User className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
+                    <span>My Profile</span>
+                  </Link>
+                  <Link
+                    to="/dashboard/settings"
+                    onClick={() => setShowProfileMenu(false)}
+                    className="flex items-center gap-3 px-4 py-2 lg:py-2.5 text-xs lg:text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Settings className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
+                    <span>Settings</span>
+                  </Link>
+                  <Link
+                    to="/dashboard/help"
+                    onClick={() => setShowProfileMenu(false)}
+                    className="flex items-center gap-3 px-4 py-2 lg:py-2.5 text-xs lg:text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
+                    <span>Help Center</span>
+                  </Link>
+
+                  {/* Logout */}
+                  <div className="border-t border-border mt-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 w-full px-4 py-2 lg:py-2.5 text-xs lg:text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* Mobile Menu Button */}
           <button
             type="button"
-            className="md:hidden p-2 rounded-lg hover:bg-muted"
+            className="lg:hidden p-2 rounded-sm hover:bg-primary/10 transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? 
+              <X className="w-5 h-5 text-primary" /> : 
+              <Menu className="w-5 h-5 text-foreground" />
+            }
           </button>
         </div>
       </div>
 
-      {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-white px-4 py-4 space-y-1">
-          {[...mainNav, ...moreNav].map((item) => (
+      {/* Mobile Menu */}
+      <div className={cn(
+        'lg:hidden border-t-2 border-primary/10 bg-white overflow-hidden transition-all duration-300',
+        mobileOpen ? 'max-h-[80vh] overflow-y-auto opacity-100' : 'max-h-0 opacity-0'
+      )}>
+        <div className="px-4 py-4 space-y-1.5">
+          {/* Main Navigation */}
+          <p className="px-4 py-1 text-xs font-bold text-primary uppercase tracking-wider">
+            Main Menu
+          </p>
+          {mainNav.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               onClick={() => setMobileOpen(false)}
-              className={cn(
-                'block px-4 py-2.5 rounded-xl text-sm font-medium transition-colors',
-                location.pathname === item.to
-                  ? 'bg-primary text-white'
-                  : 'text-foreground hover:bg-muted'
-              )}
+              className={mobileNavClass(item.to)}
             >
               {item.label}
             </Link>
           ))}
-          <div className="flex gap-2 pt-3 border-t border-border mt-3">
-            <Link
-              to="/dashboard/profile"
-              onClick={() => setMobileOpen(false)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm border border-border"
-            >
-              <User className="w-4 h-4" /> Profile
-            </Link>
-            <Link
-              to="/dashboard/settings"
-              onClick={() => setMobileOpen(false)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm border border-border"
-            >
-              <Settings className="w-4 h-4" /> Settings
-            </Link>
+
+          {/* More Navigation */}
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="px-4 py-1 text-xs font-bold text-primary uppercase tracking-wider">
+              More Options
+            </p>
+            {moreNav.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  'flex items-center justify-between px-4 py-3 rounded-sm text-sm font-semibold',
+                  location.pathname === item.to
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-muted'
+                )}
+              >
+                <span>{item.label}</span>
+                {item.badge && (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-sm">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            ))}
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm text-destructive hover:bg-destructive/10 mt-1"
-          >
-            <LogOut className="w-4 h-4" /> Logout
-          </button>
+
+          {/* Mobile Actions */}
+          <div className="mt-4 pt-4 border-t-2 border-primary/10 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Link
+                to="/dashboard/notifications"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 py-3 rounded-sm text-sm font-semibold border-2 border-primary/20 hover:bg-primary/10 text-foreground transition-all"
+              >
+                <Bell className="w-4 h-4" />
+                Alerts
+                {notificationCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-sm">
+                    {notificationCount}
+                  </span>
+                )}
+              </Link>
+              <Link
+                to="/dashboard/profile"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 py-3 rounded-sm text-sm font-semibold border-2 border-primary/20 hover:bg-primary/10 text-foreground transition-all"
+              >
+                <User className="w-4 h-4" />
+                Profile
+              </Link>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-sm text-sm font-semibold text-red-600 hover:bg-red-50 border-2 border-red-200 transition-all"
+            >
+              <LogOut className="w-4 h-4" /> 
+              Logout
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-slideDown {
+          animation: slideDown 0.2s ease-out forwards;
+        }
+      `}</style>
     </header>
-  )
+  );
 }
