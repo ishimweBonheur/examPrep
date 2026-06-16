@@ -39,6 +39,7 @@ const PortalCommunity = lazy(() => import('@/pages/portal/Community'))
 const Messages = lazy(() => import('@/pages/portal/Messages'))
 const Billing = lazy(() => import('@/pages/portal/Billing'))
 const PastPapers = lazy(() => import('@/pages/portal/PastPapers'))
+const StudyResources = lazy(() => import('@/pages/portal/StudyResources'))
 const Courses = lazy(() => import('@/pages/portal/Courses'))
 const Profile = lazy(() => import('@/pages/portal/Profile'))
 const Notifications = lazy(() => import('@/pages/portal/Notifications'))
@@ -54,6 +55,7 @@ const AdminBilling = lazy(() => import('@/pages/admin/AdminBilling'))
 const AdminDocuments = lazy(() => import('@/pages/admin/AdminDocuments'))
 const AdminAnalytics = lazy(() => import('@/pages/admin/AdminAnalytics'))
 const AdminCommunity = lazy(() => import('@/pages/admin/AdminCommunity'))
+const AdminTestimonials = lazy(() => import('@/pages/admin/AdminTestimonials'))
 
 function PortalEntryRedirect() {
   const { user, isLoadingAuth } = useAuth()
@@ -133,6 +135,7 @@ function AuthenticatedApp() {
             <Route path="/dashboard/messages" element={<Messages />} />
             <Route path="/dashboard/billing" element={<Billing />} />
             <Route path="/dashboard/past-papers" element={<PastPapers />} />
+            <Route path="/dashboard/resources" element={<StudyResources />} />
             <Route path="/dashboard/courses" element={<Courses />} />
             <Route path="/dashboard/profile" element={<Profile />} />
             <Route path="/dashboard/notifications" element={<Notifications />} />
@@ -150,6 +153,7 @@ function AuthenticatedApp() {
             <Route path="/admin/messages" element={<AdminMessages />} />
             <Route path="/admin/billing" element={<AdminBilling />} />
             <Route path="/admin/documents" element={<AdminDocuments />} />
+            <Route path="/admin/testimonials" element={<AdminTestimonials />} />
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/community" element={<AdminCommunity />} />
           </Route>

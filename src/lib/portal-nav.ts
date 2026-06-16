@@ -14,6 +14,7 @@ export interface PortalNavItem {
 export const portalNavItems: PortalNavItem[] = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/dashboard/subjects', icon: BookOpen, label: 'Subjects' },
+  { path: '/dashboard/resources', icon: Library, label: 'Study Resources' },
   { path: '/dashboard/courses', icon: Library, label: 'Courses' },
   { path: '/dashboard/practice', icon: Target, label: 'Practice' },
   { path: '/dashboard/mock-exam', icon: FileText, label: 'Mock Exams' },

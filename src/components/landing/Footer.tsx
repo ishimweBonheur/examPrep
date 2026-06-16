@@ -63,7 +63,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-white/10 py-6">
-        <p className="text-center text-sm opacity-50">© 2025 ExamPrep.rw — All rights reserved.</p>
+        <p className="text-center text-sm opacity-50">© 2026 ExamPrep.rw — All rights reserved.</p>
       </div>
     </footer>
   )

@@ -10,6 +10,7 @@ import type {
   Subscription,
   Payment,
   Notification,
+  Testimonial,
 } from '@/types'
 
 const STORAGE_KEY = 'examprep_mock_store_v1'
@@ -26,6 +27,7 @@ interface MockStore {
   subscriptions: Subscription[]
   payments: Payment[]
   notifications: Notification[]
+  testimonials: Testimonial[]
 }
 
 const now = () => new Date().toISOString()
@@ -46,6 +48,7 @@ const seedStore = (): MockStore => ({
       email: 'student@examprep.rw',
       full_name: 'Jean Uwimana',
       role: 'student',
+      level: 'S3',
       avatar_url: undefined,
       study_streak: 7,
       created_date: now(),
@@ -268,6 +271,54 @@ const seedStore = (): MockStore => ({
       downloads_count: 88,
       created_date: now(),
     },
+    {
+      id: 'doc7',
+      title: 'Biology Cell Biology Study Notes',
+      description: 'Comprehensive notes on cell structure and function',
+      subject_id: 'sub-bio',
+      subject_name: 'Biology',
+      topic: 'Cell Biology',
+      year: 2024,
+      category: 'study_notes',
+      level: 'S3',
+      file_type: 'pdf',
+      file_url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      views_count: 156,
+      downloads_count: 42,
+      created_date: now(),
+    },
+    {
+      id: 'doc8',
+      title: 'Chemistry Acids & Bases Notes',
+      description: 'Summary notes with examples and practice tips',
+      subject_id: 'sub-chem',
+      subject_name: 'Chemistry',
+      topic: 'Acids & Bases',
+      year: 2024,
+      category: 'study_notes',
+      level: 'S3',
+      file_type: 'pdf',
+      file_url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      views_count: 134,
+      downloads_count: 38,
+      created_date: now(),
+    },
+    {
+      id: 'doc9',
+      title: 'Entrepreneurship Exam Revision Guide',
+      description: 'Last-minute revision checklist for national exams',
+      subject_id: 'sub-ent',
+      subject_name: 'Entrepreneurship',
+      topic: 'General',
+      year: 2024,
+      category: 'revision_guide',
+      level: 'S3',
+      file_type: 'pdf',
+      file_url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      views_count: 98,
+      downloads_count: 25,
+      created_date: now(),
+    },
   ],
   examAttempts: [
     {
@@ -394,7 +445,7 @@ const seedStore = (): MockStore => ({
       message: 'Biology S3 National Exam 2024 is now available.',
       type: 'info',
       read: false,
-      link: '/dashboard/past-papers',
+      link: '/dashboard/resources',
       created_date: now(),
     },
     {
@@ -407,12 +458,59 @@ const seedStore = (): MockStore => ({
       created_date: now(),
     },
   ],
+  testimonials: [
+    {
+      id: 'test-1',
+      user_name: 'Jean Paul K.',
+      role: 'S3 Student',
+      message: 'This platform completely changed how I study. The AI tutor explains concepts better than any textbook!',
+      rating: 5,
+      is_active: true,
+      created_date: now(),
+      updated_date: now(),
+    },
+    {
+      id: 'test-2',
+      user_name: 'Marie A.',
+      role: 'S3 Student',
+      message: 'I improved my Biology score from 60% to 85% in just one month. The mock exams are incredibly helpful.',
+      rating: 5,
+      is_active: true,
+      created_date: now(),
+      updated_date: now(),
+    },
+    {
+      id: 'test-3',
+      user_name: 'David M.',
+      role: 'S6 Student',
+      message: 'The personalized practice questions make me feel like the app knows exactly what I need to work on.',
+      rating: 5,
+      is_active: true,
+      created_date: now(),
+      updated_date: now(),
+    },
+  ],
 })
+
+function migrateStore(store: Partial<MockStore>): MockStore {
+  const seed = seedStore()
+  const merged = { ...seed, ...store } as MockStore
+  if (!store.testimonials?.length) merged.testimonials = seed.testimonials
+  const existingDocIds = new Set(merged.documents.map((d) => d.id))
+  for (const doc of seed.documents) {
+    if (!existingDocIds.has(doc.id)) merged.documents.push(doc)
+  }
+  merged.users = merged.users.map((u) =>
+    u.role === 'student' && !u.level ? { ...u, level: 'S3' as const } : u
+  )
+  saveStore(merged)
+  return merged
+}
 
 function loadStore(): MockStore {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as MockStore
+    if (raw) return migrateStore(JSON.parse(raw) as Partial<MockStore>)
   } catch {
     /* reset on corrupt data */
   }
@@ -546,6 +644,7 @@ export function registerUser(email: string, password: string, fullName?: string)
     email,
     full_name: fullName ?? email.split('@')[0],
     role: 'student',
+    level: 'S3',
     study_streak: 0,
     created_date: now(),
   }

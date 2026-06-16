@@ -4,8 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
-import { Target, BookOpen, Brain, ArrowRight, Flame, Trophy, Clock, Calendar, Zap } from 'lucide-react'
-import type { ExamAttempt } from '@/types'
+import ClassificationBanner from '@/components/portal/ClassificationBanner'
+import { useStudentLevel } from '@/hooks/use-student-level'
+import { levelLabel, matchesStudentLevel } from '@/lib/student-level'
+import { Target, BookOpen, Brain, ArrowRight, Flame, Trophy, Clock, Calendar, Zap, Library, FileText, StickyNote } from 'lucide-react'
+import type { ExamAttempt, Subject } from '@/types'
 
 const quickActions = [
   {
@@ -40,7 +43,42 @@ const quickActions = [
   },
 ]
 
-const subjects = [
+const resourceLinks = [
+  {
+    to: '/dashboard/resources?category=past_paper',
+    icon: FileText,
+    label: 'Past Papers',
+    desc: 'National exam papers',
+    color: 'text-blue-500',
+    bg: 'bg-blue-50',
+  },
+  {
+    to: '/dashboard/resources?category=study_notes',
+    icon: StickyNote,
+    label: 'Study Notes',
+    desc: 'Topic summaries',
+    color: 'text-purple-500',
+    bg: 'bg-purple-50',
+  },
+  {
+    to: '/dashboard/resources?category=solutions',
+    icon: BookOpen,
+    label: 'Solutions',
+    desc: 'Marking schemes',
+    color: 'text-green-500',
+    bg: 'bg-green-50',
+  },
+  {
+    to: '/dashboard/resources',
+    icon: Library,
+    label: 'All Resources',
+    desc: 'Notes, guides & more',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
+  },
+]
+
+const subjectsFallback = [
   { name: 'Biology', progress: 75, color: 'bg-green-500', questions: 120 },
   { name: 'Chemistry', progress: 45, color: 'bg-blue-500', questions: 95 },
   { name: 'Entrepreneurship', progress: 60, color: 'bg-amber-500', questions: 80 },
@@ -62,8 +100,26 @@ function getMotivationalMessage(avgScore: number, streak: number): string {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const studentLevel = useStudentLevel()
   const [activeTab, setActiveTab] = useState('overview')
-  const [hoveredAction, setHoveredAction] = useState(null)
+  const [hoveredAction, setHoveredAction] = useState<number | null>(null)
+
+  const { data: levelSubjects = [] } = useQuery<Subject[]>({
+    queryKey: ['subjects', studentLevel],
+    queryFn: async () => {
+      const all = await base44.entities.Subject.list() as Subject[]
+      return all.filter((s) => matchesStudentLevel(s.level, studentLevel))
+    },
+  })
+
+  const subjects = levelSubjects.length > 0
+    ? levelSubjects.map((s, i) => ({
+        name: s.name,
+        progress: s.progress ?? subjectsFallback[i]?.progress ?? 0,
+        color: subjectsFallback[i]?.color ?? 'bg-primary',
+        questions: subjectsFallback[i]?.questions ?? 0,
+      }))
+    : subjectsFallback
 
   const { data: attempts = [], isLoading } = useQuery<ExamAttempt[]>({
     queryKey: ['exam-attempts'],
@@ -85,6 +141,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <ClassificationBanner level={studentLevel} />
+
       {/* Welcome card with gradient */}
       <div className="relative bg-gradient-to-br from-primary via-primary/95 rounded-lg shadow-lg shadow-primary/10 overflow-hidden animate-fadeInUp">
         {/* Decorative elements */}
@@ -181,9 +239,32 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Study resources quick access */}
+      <div className="animate-fadeInUp" style={{ animationDelay: '150ms' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading font-bold text-lg text-foreground">Study Materials</h2>
+          <Link to="/dashboard/resources" className="text-sm text-primary font-medium hover:underline flex items-center gap-1">
+            Browse all <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {resourceLinks.map((item) => (
+            <Link key={item.to} to={item.to}>
+              <div className="bg-card rounded-xl border border-border p-4 hover:border-primary/30 hover:shadow-md transition-all group h-full">
+                <div className={`w-10 h-10 ${item.bg} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                  <item.icon className={`w-5 h-5 ${item.color}`} />
+                </div>
+                <p className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* Subject Progress */}
       <div className="animate-fadeInUp" style={{ animationDelay: '200ms' }}>
-        <h2 className="font-heading font-bold text-lg text-foreground mb-4">Your Subjects</h2>
+        <h2 className="font-heading font-bold text-lg text-foreground mb-4">Your {levelLabel(studentLevel)} Subjects</h2>
         <div className="grid sm:grid-cols-3 gap-4">
           {subjects.map((subject,) => (
             <div 
@@ -317,7 +398,7 @@ export default function Dashboard() {
                         <span>·</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {attempt.duration ? `${Math.floor(attempt.duration / 60)}m` : 'N/A'}
+                          {attempt.time_spent_seconds ? `${Math.floor(attempt.time_spent_seconds / 60)}m` : 'N/A'}
                         </span>
                       </div>
                     </div>

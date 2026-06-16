@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, MessageCircle, Trophy, BookOpen, ArrowRight, CheckCircle, Star, Clock, Heart } from 'lucide-react';
+import { Users, MessageCircle, Trophy, BookOpen, ArrowRight, CheckCircle, Star, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import TestimonialsCarousel from '@/components/landing/TestimonialsCarousel';
 
 const highlights = [
   {
@@ -65,27 +66,6 @@ const benefits = [
   },
 ];
 
-const testimonials = [
-  {
-    name: 'Alice U.',
-    role: 'S3 Student, Kigali',
-    text: 'The community helped me understand complex Chemistry concepts. Getting answers from peers who explain things simply made all the difference!',
-    rating: 5,
-  },
-  {
-    name: 'Patrick M.',
-    role: 'S3 Student, Butare',
-    text: 'I was struggling with Biology until I joined a study group here. Now I actually enjoy revising and my grades have improved significantly.',
-    rating: 5,
-  },
-  {
-    name: 'Grace I.',
-    role: 'S3 Student, Gisenyi',
-    text: 'The leaderboard keeps me motivated to study daily. Seeing my progress and competing with friends makes learning fun!',
-    rating: 5,
-  },
-];
-
 const stats = [
   { icon: Users, value: '1,500+', label: 'Active Students', color: 'text-blue-500' },
   { icon: MessageCircle, value: '2,500+', label: 'Questions Answered', color: 'text-green-500' },
@@ -94,9 +74,8 @@ const stats = [
 ];
 
 export default function Community() {
-  const [expandedCard, setExpandedCard] = useState(null);
-  const [expandedBenefit, setExpandedBenefit] = useState(null);
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [expandedBenefit, setExpandedBenefit] = useState<number | null>(null);
 
   return (
     <div>
@@ -265,46 +244,7 @@ export default function Community() {
 
               {/* Testimonials Carousel */}
               <div className="mt-8 pt-6 border-t border-border">
-                <div className="text-center mb-4">
-                  <p className="text-sm font-semibold text-foreground">What Students Say</p>
-                </div>
-                
-                <div className="relative min-h-[120px]">
-                  <div 
-                    className="text-center transition-all duration-500"
-                    key={activeTestimonial}
-                  >
-                    <div className="flex justify-center gap-1 mb-3">
-                      {[...Array(testimonials[activeTestimonial].rating)].map((_, i) => (
-                        <Heart key={i} className="w-4 h-4 fill-red-400 text-red-400" />
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground italic mb-3">
-                      "{testimonials[activeTestimonial].text}"
-                    </p>
-                    <p className="text-sm font-semibold text-foreground">
-                      {testimonials[activeTestimonial].name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {testimonials[activeTestimonial].role}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Testimonial Navigation */}
-                <div className="flex justify-center gap-2 mt-4">
-                  {testimonials.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setActiveTestimonial(index)}
-                      className={`w-2 h-2 rounded-sm transition-all duration-300
-                        ${activeTestimonial === index 
-                          ? 'bg-primary w-6' 
-                          : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                        }`}
-                    />
-                  ))}
-                </div>
+                <TestimonialsCarousel compact autoPlay />
               </div>
 
               <Link to="/register" className="block mt-8">

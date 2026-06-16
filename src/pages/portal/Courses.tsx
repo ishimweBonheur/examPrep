@@ -10,23 +10,34 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { BookOpen, Eye, Search, FileText } from 'lucide-react'
 import { PageLoader } from '@/components/shared/LoadingSkeleton'
 import EmptyState from '@/components/shared/EmptyState'
+import ClassificationBanner from '@/components/portal/ClassificationBanner'
+import { useStudentLevel } from '@/hooks/use-student-level'
+import { matchesStudentLevel } from '@/lib/student-level'
 import type { Document, Subject } from '@/types'
 
 export default function Courses() {
+  const studentLevel = useStudentLevel()
   const [search, setSearch] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('all')
   const [preview, setPreview] = useState<Document | null>(null)
 
   const { data: subjects = [] } = useQuery<Subject[]>({
-    queryKey: ['subjects'],
-    queryFn: () => base44.entities.Subject.list() as Promise<Subject[]>,
+    queryKey: ['subjects', studentLevel],
+    queryFn: async () => {
+      const all = await base44.entities.Subject.list() as Subject[]
+      return all.filter((s) => matchesStudentLevel(s.level, studentLevel))
+    },
   })
 
   const { data: documents = [], isLoading } = useQuery<Document[]>({
-    queryKey: ['courses', subjectFilter],
+    queryKey: ['courses', subjectFilter, studentLevel],
     queryFn: async () => {
       const all = await base44.entities.Document.filter(
-        { category: 'syllabus', ...(subjectFilter !== 'all' ? { subject_id: subjectFilter } : {}) },
+        {
+          category: 'syllabus',
+          level: studentLevel,
+          ...(subjectFilter !== 'all' ? { subject_id: subjectFilter } : {}),
+        },
         '-created_date',
         100
       ) as Document[]
@@ -42,9 +53,11 @@ export default function Courses() {
 
   return (
     <div className="space-y-6">
+      <ClassificationBanner level={studentLevel} />
+
       <div>
         <h1 className="font-heading font-extrabold text-2xl md:text-3xl">Courses of Study</h1>
-        <p className="text-muted-foreground mt-1">Official syllabi and curriculum outlines by subject.</p>
+        <p className="text-muted-foreground mt-1">Official syllabi and curriculum outlines for your class level.</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

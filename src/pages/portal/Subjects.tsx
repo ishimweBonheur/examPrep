@@ -6,6 +6,9 @@ import { Progress } from '@/components/ui/progress';
 import { Link } from 'react-router-dom';
 import { Microscope, FlaskConical, Lightbulb, ArrowRight, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ClassificationBanner from '@/components/portal/ClassificationBanner';
+import { useStudentLevel } from '@/hooks/use-student-level';
+import { levelLabel, matchesStudentLevel } from '@/lib/student-level';
 import type { Subject, Topic } from '@/types';
 
 interface ColorScheme {
@@ -27,16 +30,23 @@ const colorMap: Record<string, ColorScheme> = {
 };
 
 export default function Subjects() {
+  const studentLevel = useStudentLevel();
+
   const { data: subjects = [], isLoading } = useQuery<Subject[]>({
-    queryKey: ['subjects'],
-    queryFn: () => base44.entities.Subject.list(),
+    queryKey: ['subjects', studentLevel],
+    queryFn: async () => {
+      const all = await base44.entities.Subject.list() as Subject[];
+      return all.filter((s) => matchesStudentLevel(s.level, studentLevel));
+    },
   });
 
   return (
     <div className="space-y-8">
+      <ClassificationBanner level={studentLevel} />
+
       <div>
         <h1 className="font-heading font-extrabold text-2xl md:text-3xl text-foreground">Subjects</h1>
-        <p className="text-muted-foreground mt-1">Browse topics for each S3 subject.</p>
+        <p className="text-muted-foreground mt-1">Browse topics for {levelLabel(studentLevel)} subjects.</p>
       </div>
 
       {isLoading ? (

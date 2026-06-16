@@ -23,6 +23,38 @@ export const PAST_PAPER_CATEGORIES: DocumentCategory[] = [
   'revision_guide',
 ]
 
+/** All document types students can browse (admin uploads) */
+export const ALL_RESOURCE_CATEGORIES: DocumentCategory[] = [
+  'past_paper',
+  'study_notes',
+  'solutions',
+  'revision_guide',
+  'syllabus',
+]
+
+export const RESOURCE_CATEGORY_SHORT: Record<DocumentCategory, string> = {
+  past_paper: 'Past Papers',
+  study_notes: 'Notes',
+  solutions: 'Solutions',
+  revision_guide: 'Revision',
+  syllabus: 'Syllabi',
+}
+
+export interface ResourceCategoryMeta {
+  key: DocumentCategory | 'all'
+  label: string
+  description: string
+}
+
+export const RESOURCE_TABS: ResourceCategoryMeta[] = [
+  { key: 'all', label: 'All Resources', description: 'Everything uploaded for your class level' },
+  { key: 'past_paper', label: 'Past Papers', description: 'National exam papers by year and subject' },
+  { key: 'study_notes', label: 'Study Notes', description: 'Topic summaries and class notes' },
+  { key: 'solutions', label: 'Solutions', description: 'Marking schemes and worked answers' },
+  { key: 'revision_guide', label: 'Revision Guides', description: 'Exam prep and revision materials' },
+  { key: 'syllabus', label: 'Syllabi', description: 'Official courses of study' },
+]
+
 export function categoryLabel(category: string): string {
   return DOCUMENT_CATEGORY_LABELS[category as DocumentCategory] ?? category
 }

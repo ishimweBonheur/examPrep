@@ -1,8 +1,11 @@
+export type StudentLevel = 'S1' | 'S2' | 'S3' | 'S6'
+
 export interface User {
   id: string
   email: string
   full_name: string
   role: 'student' | 'admin' | 'teacher'
+  level?: StudentLevel
   avatar_url?: string
   study_streak?: number
   created_date: string
@@ -183,6 +186,18 @@ export interface Achievement {
   icon: string
   unlocked: boolean
   unlocked_date?: string
+}
+
+export interface Testimonial {
+  id: string
+  user_name: string
+  role: string
+  message: string
+  rating: number
+  avatar_url?: string
+  is_active: boolean
+  created_date: string
+  updated_date: string
 }
 
 /** Normalized question shape for practice / mock exam UI */

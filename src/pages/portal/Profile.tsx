@@ -2,9 +2,11 @@ import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { User, Trophy, Flame, Target, BookOpen, Camera } from 'lucide-react'
+import { User, Trophy, Flame, Target, BookOpen, Camera, GraduationCap } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
+import { useStudentLevel } from '@/hooks/use-student-level'
+import { levelLabel } from '@/lib/student-level'
 import type { ExamAttempt } from '@/types'
 
 const achievements = [
@@ -16,6 +18,7 @@ const achievements = [
 
 export default function Profile() {
   const { user } = useAuth()
+  const studentLevel = useStudentLevel()
 
   const { data: attempts = [] } = useQuery<ExamAttempt[]>({
     queryKey: ['exam-attempts'],
@@ -48,7 +51,13 @@ export default function Profile() {
             <div>
               <h2 className="font-heading font-bold text-xl">{user?.full_name}</h2>
               <p className="text-muted-foreground">{user?.email}</p>
-              <Badge className="mt-2 capitalize">{user?.role ?? 'student'}</Badge>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge className="capitalize">{user?.role ?? 'student'}</Badge>
+                <Badge variant="outline" className="gap-1">
+                  <GraduationCap className="w-3 h-3" />
+                  {levelLabel(studentLevel)}
+                </Badge>
+              </div>
             </div>
           </div>
         </CardContent>

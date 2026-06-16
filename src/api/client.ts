@@ -103,6 +103,7 @@ export const base44 = {
     Subscription: createEntityApi('subscriptions'),
     Payment: createEntityApi('payments'),
     Notification: createEntityApi('notifications'),
+    Testimonial: createEntityApi('testimonials'),
   },
 
   integrations: {

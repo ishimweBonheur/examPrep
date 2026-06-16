@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import AboutSection from './AboutSection';
 import Pricing from '@/pages/Pricing';
+import TestimonialsSection from './TestimonialsSection';
 
 interface StatItem {
   label: string;
@@ -47,27 +48,6 @@ export default function HeroSection() {
     { label: 'Practice Questions', value: `${counts.questions}+`, sub: 'Topic-based' },
     { label: 'Core Subjects', value: `${counts.subjects}`, sub: 'S3 Level' },
     { label: 'Satisfaction Rate', value: `${counts.rating}%`, sub: 'Student Approved' },
-  ];
-
-  const testimonials = [
-    {
-      name: "Jean Paul K.",
-      role: "S3 Student",
-      text: "This platform completely changed how I study. The AI tutor explains concepts better than any textbook!",
-      rating: 5
-    },
-    {
-      name: "Marie A.",
-      role: "S3 Student", 
-      text: "I improved my Biology score from 60% to 85% in just one month. The mock exams are incredibly helpful.",
-      rating: 5
-    },
-    {
-      name: "David M.",
-      role: "S3 Student",
-      text: "The personalized practice questions make me feel like the app knows exactly what I need to work on.",
-      rating: 5
-    }
   ];
 
   const trustedBy = [
@@ -288,31 +268,7 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Testimonials Section */}
-        <div className="py-12 border-t border-border">
-          <h2 className="text-3xl font-black text-center text-foreground mb-8">
-            What Students Say
-          </h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <div 
-                key={index}
-                className="bg-card rounded-sm border border-border p-6 hover:border-primary/20 hover:shadow-lg transition-all duration-300"
-              >
-                <div className="flex mb-3">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <span key={i} className="text-yellow-400 text-sm">★</span>
-                  ))}
-                </div>
-                <p className="text-muted-foreground text-sm mb-4 leading-relaxed">"{testimonial.text}"</p>
-                <div>
-                  <div className="font-bold text-foreground text-sm">{testimonial.name}</div>
-                  <div className="text-xs text-muted-foreground">{testimonial.role}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <TestimonialsSection />
 
         {/* Bottom CTA */}
         <div className="py-16 text-center">

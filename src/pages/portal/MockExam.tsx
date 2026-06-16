@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, XCircle, ArrowRight, RotateCcw, Loader2, Clock, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth'
+import ClassificationBanner from '@/components/portal/ClassificationBanner'
+import { useStudentLevel } from '@/hooks/use-student-level'
+import { levelLabel, matchesStudentLevel } from '@/lib/student-level'
 
 interface Option {
   label: string;
@@ -30,6 +33,7 @@ interface Answer extends Question {
 interface Subject {
   id: string;
   name: string;
+  level?: string;
 }
 
 interface LLMResponse {
@@ -38,6 +42,7 @@ interface LLMResponse {
 
 export default function MockExam() {
   const { user } = useAuth();
+  const studentLevel = useStudentLevel();
   const queryClient = useQueryClient();
 
   const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -52,8 +57,11 @@ export default function MockExam() {
   const [started, setStarted] = useState<boolean>(false);
 
   const { data: subjects = [] } = useQuery<Subject[]>({
-    queryKey: ['subjects'],
-    queryFn: () => base44.entities.Subject.list(),
+    queryKey: ['subjects', studentLevel],
+    queryFn: async () => {
+      const all = await base44.entities.Subject.list() as Subject[];
+      return all.filter((s) => matchesStudentLevel(s.level, studentLevel));
+    },
   });
 
   useEffect(() => {
@@ -77,7 +85,7 @@ export default function MockExam() {
     const subjectName = subjects.find((s: Subject) => s.id === selectedSubject)?.name || 'General';
     
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate a mock national exam for Rwandan S3 students in ${subjectName}. Create 15 multiple choice questions covering material from S1 through S3 levels. Include questions of varying difficulty (easy, medium, hard). Each question should have 4 options (A, B, C, D) with one correct answer and a brief explanation. Make them similar in style and difficulty to actual Rwandan national exams.`,
+      prompt: `Generate a mock national exam for Rwandan ${levelLabel(studentLevel)} students in ${subjectName}. Create 15 multiple choice questions covering material appropriate for ${studentLevel} level. Include questions of varying difficulty (easy, medium, hard). Each question should have 4 options (A, B, C, D) with one correct answer and a brief explanation. Make them similar in style and difficulty to actual Rwandan national exams.`,
       response_json_schema: {
         type: "object",
         properties: {
@@ -185,9 +193,11 @@ export default function MockExam() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <ClassificationBanner level={studentLevel} />
+
       <div>
         <h1 className="font-heading font-extrabold text-2xl text-foreground">Mock Exam</h1>
-        <p className="text-muted-foreground mt-1">Take a full mock national exam to test your readiness.</p>
+        <p className="text-muted-foreground mt-1">Take a full mock national exam tailored for {levelLabel(studentLevel)}.</p>
       </div>
 
       {questions.length === 0 ? (
@@ -198,7 +208,7 @@ export default function MockExam() {
             </div>
             <div>
               <h3 className="font-heading font-bold text-lg">Ready for your mock exam?</h3>
-              <p className="text-sm text-muted-foreground mt-2">This exam will contain 15 questions covering S1-S3 material.</p>
+              <p className="text-sm text-muted-foreground mt-2">This exam will contain 15 questions for {levelLabel(studentLevel)} material.</p>
             </div>
             <Select value={selectedSubject} onValueChange={setSelectedSubject}>
               <SelectTrigger className="max-w-xs mx-auto"><SelectValue placeholder="Select subject" /></SelectTrigger>

@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { 
   Users, Plus, MessageCircle, Send, User, Shield, 
-  Image, X, ChevronDown, ChevronUp, Paperclip, Upload, Eye
+  Image, X, ChevronDown, ChevronUp, Paperclip, Eye
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { formatDate } from '@/lib/format-date'

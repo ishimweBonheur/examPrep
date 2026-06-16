@@ -9,10 +9,14 @@ import { Progress } from '@/components/ui/progress'
 import { CheckCircle, XCircle, ArrowRight, RotateCcw, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { questionToPractice, llmQuestionToPractice } from '@/lib/practice-utils'
+import ClassificationBanner from '@/components/portal/ClassificationBanner'
+import { useStudentLevel } from '@/hooks/use-student-level'
+import { levelLabel, matchesStudentLevel } from '@/lib/student-level'
 import type { PracticeAnswer, PracticeQuestion, Question, Subject } from '@/types'
 
 export default function Practice() {
   const { user } = useAuth()
+  const studentLevel = useStudentLevel()
   const queryClient = useQueryClient()
   const urlParams = new URLSearchParams(window.location.search)
   const preSelectedSubject = urlParams.get('subject') || ''
@@ -28,17 +32,23 @@ export default function Practice() {
   const [generating, setGenerating] = useState(false)
 
   const { data: subjects = [] } = useQuery<Subject[]>({
-    queryKey: ['subjects'],
-    queryFn: () => base44.entities.Subject.list() as Promise<Subject[]>,
+    queryKey: ['subjects', studentLevel],
+    queryFn: async () => {
+      const all = await base44.entities.Subject.list() as Subject[]
+      return all.filter((s) => matchesStudentLevel(s.level, studentLevel))
+    },
   })
 
   const { data: questionBank = [] } = useQuery<Question[]>({
-    queryKey: ['questions', selectedSubject, selectedTopic],
-    queryFn: () =>
-      base44.entities.Question.filter({
+    queryKey: ['questions', selectedSubject, selectedTopic, studentLevel],
+    queryFn: async () => {
+      const all = await base44.entities.Question.filter({
         ...(selectedSubject ? { subject_id: selectedSubject } : {}),
         ...(selectedTopic && selectedTopic !== 'all' ? { topic: selectedTopic } : {}),
-      }) as Promise<Question[]>,
+        level: studentLevel,
+      }) as Question[]
+      return all
+    },
     enabled: !!selectedSubject,
   })
 
@@ -63,7 +73,7 @@ export default function Practice() {
     const subjectName = currentSubject?.name || 'General'
     const topicName = selectedTopic && selectedTopic !== 'all' ? selectedTopic : 'various topics'
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate 5 multiple choice questions for Rwandan S3 students studying ${subjectName} on the topic of ${topicName}. Each question should have 4 options (A, B, C, D) with one correct answer and a brief explanation.`,
+      prompt: `Generate 5 multiple choice questions for Rwandan ${levelLabel(studentLevel)} students studying ${subjectName} on the topic of ${topicName}. Each question should have 4 options (A, B, C, D) with one correct answer and a brief explanation.`,
     }) as { questions?: Array<{ question_text: string; options: string[]; correct_answer: number; explanation?: string }> }
 
     const generated = (result.questions || []).map((q) =>
@@ -161,9 +171,11 @@ export default function Practice() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <ClassificationBanner level={studentLevel} />
+
       <div>
         <h1 className="font-heading font-extrabold text-2xl text-foreground">Practice Mode</h1>
-        <p className="text-muted-foreground mt-1">Select a subject and topic to start practicing.</p>
+        <p className="text-muted-foreground mt-1">Select a subject and topic for {levelLabel(studentLevel)} practice.</p>
       </div>
 
       {questions.length === 0 ? (

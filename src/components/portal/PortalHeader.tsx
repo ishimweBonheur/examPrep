@@ -3,11 +3,14 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { GraduationCap, Bell, Menu, X, LogOut, User, Settings, HelpCircle } from 'lucide-react'
 import { base44 } from '@/api/client'
 import { useAuth } from '@/hooks/use-auth'
+import { useStudentLevel } from '@/hooks/use-student-level'
+import { levelLabel } from '@/lib/student-level'
 import { cn } from '@/lib/utils'
 
 const mainNav = [
   { to: '/dashboard', label: 'Home', end: true },
   { to: '/dashboard/subjects', label: 'Subjects' },
+  { to: '/dashboard/resources', label: 'Resources' },
   { to: '/dashboard/practice', label: 'Practice' },
   { to: '/dashboard/mock-exam', label: 'Exams' },
   { to: '/dashboard/ai-tutor', label: 'AI Tutor' },
@@ -15,6 +18,8 @@ const mainNav = [
 
 const moreNav = [
   { to: '/dashboard/progress', label: 'Progress', badge: 'New' },
+  { to: '/dashboard/courses', label: 'Courses' },
+  { to: '/dashboard/past-papers', label: 'Past Papers' },
   { to: '/dashboard/results', label: 'Results' },
   { to: '/dashboard/community', label: 'Community' },
   { to: '/dashboard/messages', label: 'Messages' },
@@ -29,6 +34,7 @@ export default function PortalHeader() {
   const [notificationCount] = useState(3)
   const location = useLocation()
   const { user } = useAuth()
+  const studentLevel = useStudentLevel()
   
   // Refs for dropdown containers
   const moreMenuRef = useRef(null)
@@ -224,7 +230,7 @@ export default function PortalHeader() {
                   <span className="text-xs lg:text-sm font-bold text-foreground block leading-tight max-w-[80px] lg:max-w-[100px] truncate">
                     {user?.full_name?.split(' ')[0] ?? 'Student'}
                   </span>
-                  <span className="text-[10px] lg:text-xs text-primary font-medium">S3 Student</span>
+                  <span className="text-[10px] lg:text-xs text-primary font-medium">{levelLabel(studentLevel)} Student</span>
                 </div>
                 <span className="text-[10px] lg:text-xs ml-0.5 lg:ml-1">▾</span>
               </button>
