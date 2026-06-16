@@ -56,14 +56,14 @@ export default function Footer() {
             <h4 className="font-heading font-bold text-white mb-4">Contact</h4>
             <div className="space-y-3">
               <p className="flex items-center gap-2 text-sm"><MapPin className="w-4 h-4 shrink-0" /> Kigali, Rwanda</p>
-              <p className="flex items-center gap-2 text-sm"><Phone className="w-4 h-4 shrink-0" /> +250 788 000 000</p>
-              <p className="flex items-center gap-2 text-sm"><Mail className="w-4 h-4 shrink-0" /> info@examprep.rw</p>
+              <p className="flex items-center gap-2 text-sm"><Phone className="w-4 h-4 shrink-0" /> +250 7849 63 589</p>
+              <p className="flex items-center gap-2 text-sm"><Mail className="w-4 h-4 shrink-0" /> ishimwebonheur078@gmail.com</p>
             </div>
           </div>
         </div>
       </div>
       <div className="border-t border-white/10 py-6">
-        <p className="text-center text-sm opacity-50">© 2026 ExamPrep.rw — All rights reserved.</p>
+        <p className="text-center text-sm opacity-50">© 2026 — All rights reserved.</p>
       </div>
     </footer>
   )
