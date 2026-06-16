@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
@@ -30,7 +30,7 @@ export default function StudyResources() {
   const studentLevel = useStudentLevel()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialCategory = searchParams.get('category') || ALL_FILTER
+  const categoryFilter = searchParams.get('category') || ALL_FILTER
 
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
   const [solutionDoc, setSolutionDoc] = useState<Document | null>(null)
@@ -38,14 +38,8 @@ export default function StudyResources() {
   const [solutionOpen, setSolutionOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [subjectFilter, setSubjectFilter] = useState(ALL_FILTER)
-  const [categoryFilter, setCategoryFilter] = useState(initialCategory)
   const [yearFilter, setYearFilter] = useState(ALL_FILTER)
   const [downloading, setDownloading] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    const cat = searchParams.get('category') || ALL_FILTER
-    setCategoryFilter(cat)
-  }, [searchParams])
 
   const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ['subjects', studentLevel],
@@ -94,13 +88,13 @@ export default function StudyResources() {
   }
 
   const setCategoryTab = (key: string) => {
-    setCategoryFilter(key)
+    const next = new URLSearchParams(searchParams)
     if (key === ALL_FILTER) {
-      searchParams.delete('category')
+      next.delete('category')
     } else {
-      searchParams.set('category', key)
+      next.set('category', key)
     }
-    setSearchParams(searchParams, { replace: true })
+    setSearchParams(next, { replace: true })
   }
 
   const categoryCounts = documents.reduce<Record<string, number>>((acc, doc) => {

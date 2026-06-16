@@ -68,10 +68,10 @@ export const base44 = {
         })
     },
 
-    async register({ email, password, full_name }: { email: string; password: string; full_name?: string }) {
+    async register({ email, password, full_name, level }: { email: string; password: string; full_name?: string; level?: string }) {
       return apiPost<{ success: boolean; requiresOtp: boolean }>(
         '/auth/register',
-        { email, password, full_name },
+        { email, password, full_name, level },
         false
       )
     },
@@ -94,7 +94,7 @@ export const base44 = {
       return apiPost<{ success: boolean }>('/auth/reset-password-request', { email }, false)
     },
 
-    async resetPassword(payload: { resetToken: string; newPassword: string }) {
+    async resetPassword(payload: { resetToken: string; newPassword: string; email?: string }) {
       return apiPost<{ success: boolean }>('/auth/reset-password', payload, false)
     },
 

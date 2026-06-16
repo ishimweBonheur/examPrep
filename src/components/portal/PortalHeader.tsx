@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { GraduationCap, Bell, Menu, X, LogOut, User, Settings, HelpCircle } from 'lucide-react'
 import { base44 } from '@/api/client'
+import { fetchUnreadNotificationCount } from '@/api/http'
 import { useAuth } from '@/hooks/use-auth'
 import { useStudentLevel } from '@/hooks/use-student-level'
 import { levelLabel } from '@/lib/student-level'
@@ -28,57 +30,60 @@ const moreNav = [
 ]
 
 export default function PortalHeader() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
-  const [showProfileMenu, setShowProfileMenu] = useState(false)
-  const [notificationCount] = useState(3)
+  const [mobileOpenPath, setMobileOpenPath] = useState<string | null>(null)
+  const [moreMenuPath, setMoreMenuPath] = useState<string | null>(null)
+  const [profileMenuPath, setProfileMenuPath] = useState<string | null>(null)
   const location = useLocation()
+  const routeKey = location.pathname
+  const mobileOpen = mobileOpenPath === routeKey
+  const showMoreMenu = moreMenuPath === routeKey
+  const showProfileMenu = profileMenuPath === routeKey
   const { user } = useAuth()
   const studentLevel = useStudentLevel()
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notification-unread', user?.id],
+    queryFn: fetchUnreadNotificationCount,
+    enabled: !!user?.id,
+    refetchInterval: 60_000,
+  })
+  const notificationCount = unreadData?.count ?? 0
   
   // Refs for dropdown containers
-  const moreMenuRef = useRef(null)
-  const profileMenuRef = useRef(null)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = () => {
-    setShowProfileMenu(false)
-    setMobileOpen(false)
+    setProfileMenuPath(null)
+    setMobileOpenPath(null)
     base44.auth.logout('/')
   }
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
       // Close More menu if clicking outside
-      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
-        setShowMoreMenu(false)
+      if (moreMenuRef.current && !moreMenuRef.current.contains(target)) {
+        setMoreMenuPath(null)
       }
       // Close Profile menu if clicking outside
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
-        setShowProfileMenu(false)
+      if (profileMenuRef.current && !profileMenuRef.current.contains(target)) {
+        setProfileMenuPath(null)
       }
     }
-
-    // Close dropdowns when route changes
-    setShowMoreMenu(false)
-    setShowProfileMenu(false)
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [location.pathname])
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [location.pathname])
+  }, [])
 
   // Close mobile menu on window resize to desktop
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
-        setMobileOpen(false)
+        setMobileOpenPath(null)
       }
     }
     window.addEventListener('resize', handleResize)
@@ -141,8 +146,8 @@ export default function PortalHeader() {
             <div className="relative" ref={moreMenuRef}>
               <button
                 onClick={() => {
-                  setShowMoreMenu(!showMoreMenu)
-                  setShowProfileMenu(false)
+                  setMoreMenuPath(showMoreMenu ? null : routeKey)
+                  setProfileMenuPath(null)
                 }}
                 className={cn(
                   'px-3 lg:px-4 py-2 rounded-sm text-sm font-semibold transition-all duration-200',
@@ -160,7 +165,7 @@ export default function PortalHeader() {
                     <Link
                       key={item.to}
                       to={item.to}
-                      onClick={() => setShowMoreMenu(false)}
+                      onClick={() => setMoreMenuPath(null)}
                       className={cn(
                         'flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors',
                         location.pathname === item.to
@@ -179,7 +184,7 @@ export default function PortalHeader() {
                   <div className="border-t border-border mt-2 pt-2">
                     <Link
                       to="/dashboard/help"
-                      onClick={() => setShowMoreMenu(false)}
+                      onClick={() => setMoreMenuPath(null)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
                     >
                       <HelpCircle className="w-4 h-4" />
@@ -211,8 +216,8 @@ export default function PortalHeader() {
             <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => {
-                  setShowProfileMenu(!showProfileMenu)
-                  setShowMoreMenu(false)
+                  setProfileMenuPath(showProfileMenu ? null : routeKey)
+                  setMoreMenuPath(null)
                 }}
                 className={cn(
                   'flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 lg:py-2 rounded-sm transition-all duration-200 border-2',
@@ -250,7 +255,7 @@ export default function PortalHeader() {
                   {/* Profile Links */}
                   <Link
                     to="/dashboard/profile"
-                    onClick={() => setShowProfileMenu(false)}
+                    onClick={() => setProfileMenuPath(null)}
                     className="flex items-center gap-3 px-4 py-2 lg:py-2.5 text-xs lg:text-sm font-medium text-foreground hover:bg-muted transition-colors"
                   >
                     <User className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
@@ -258,7 +263,7 @@ export default function PortalHeader() {
                   </Link>
                   <Link
                     to="/dashboard/settings"
-                    onClick={() => setShowProfileMenu(false)}
+                    onClick={() => setProfileMenuPath(null)}
                     className="flex items-center gap-3 px-4 py-2 lg:py-2.5 text-xs lg:text-sm font-medium text-foreground hover:bg-muted transition-colors"
                   >
                     <Settings className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
@@ -266,7 +271,7 @@ export default function PortalHeader() {
                   </Link>
                   <Link
                     to="/dashboard/help"
-                    onClick={() => setShowProfileMenu(false)}
+                    onClick={() => setProfileMenuPath(null)}
                     className="flex items-center gap-3 px-4 py-2 lg:py-2.5 text-xs lg:text-sm font-medium text-foreground hover:bg-muted transition-colors"
                   >
                     <HelpCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
@@ -293,7 +298,7 @@ export default function PortalHeader() {
           <button
             type="button"
             className="lg:hidden p-2 rounded-sm hover:bg-primary/10 transition-colors"
-            onClick={() => setMobileOpen(!mobileOpen)}
+            onClick={() => setMobileOpenPath(mobileOpen ? null : routeKey)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
             {mobileOpen ? 
@@ -318,7 +323,7 @@ export default function PortalHeader() {
             <Link
               key={item.to}
               to={item.to}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => setMobileOpenPath(null)}
               className={mobileNavClass(item.to)}
             >
               {item.label}
@@ -334,7 +339,7 @@ export default function PortalHeader() {
               <Link
                 key={item.to}
                 to={item.to}
-                onClick={() => setMobileOpen(false)}
+                onClick={() => setMobileOpenPath(null)}
                 className={cn(
                   'flex items-center justify-between px-4 py-3 rounded-sm text-sm font-semibold',
                   location.pathname === item.to
@@ -357,7 +362,7 @@ export default function PortalHeader() {
             <div className="grid grid-cols-2 gap-2">
               <Link
                 to="/dashboard/notifications"
-                onClick={() => setMobileOpen(false)}
+                onClick={() => setMobileOpenPath(null)}
                 className="flex items-center justify-center gap-2 py-3 rounded-sm text-sm font-semibold border-2 border-primary/20 hover:bg-primary/10 text-foreground transition-all"
               >
                 <Bell className="w-4 h-4" />
@@ -370,7 +375,7 @@ export default function PortalHeader() {
               </Link>
               <Link
                 to="/dashboard/profile"
-                onClick={() => setMobileOpen(false)}
+                onClick={() => setMobileOpenPath(null)}
                 className="flex items-center justify-center gap-2 py-3 rounded-sm text-sm font-semibold border-2 border-primary/20 hover:bg-primary/10 text-foreground transition-all"
               >
                 <User className="w-4 h-4" />

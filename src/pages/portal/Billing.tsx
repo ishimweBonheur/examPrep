@@ -11,10 +11,9 @@ import {
   Crown, Shield, Zap, Loader2, ArrowRight, LucideIcon 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth'
-import { formatDate, todayISO, addDays, addMonths, daysUntil } from '@/lib/format-date';
+import { formatDate, daysUntil } from '@/lib/format-date';
+import { startSubscriptionTrial } from '@/api/http';
 import type { SubscriptionPlan, Subscription, Payment } from '@/types';
-
-const TRIAL_DAYS = 7;
 
 export default function Billing() {
   const { user } = useAuth();
@@ -56,15 +55,9 @@ export default function Billing() {
   const trialDaysLeft = currentSub?.trial_end_date ? daysUntil(currentSub.trial_end_date) : 0;
 
   const startTrial = async (): Promise<void> => {
-    const trialStart = todayISO();
-    const trialEnd = addDays(TRIAL_DAYS);
-    await base44.entities.Subscription.create({
-      student_id: user?.id,
-      status: 'trial',
-      trial_start_date: trialStart,
-      trial_end_date: trialEnd,
-    });
+    await startSubscriptionTrial();
     queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
+    queryClient.invalidateQueries({ queryKey: ['access-status'] });
   };
 
   const openPayment = (plan: SubscriptionPlan): void => {
@@ -94,45 +87,10 @@ export default function Billing() {
       phone_number: paymentMethod === 'mobile_money' ? phoneNumber : undefined,
     });
 
-    // Update or create subscription
-    const startDate = todayISO();
-    const endDate = addMonths(billingCycle === 'yearly' ? 12 : 1);
-
-    if (currentSub) {
-      await base44.entities.Subscription.update(currentSub.id, {
-        plan_id: selectedPlan.id,
-        plan_name: selectedPlan.name,
-        status: 'active',
-        start_date: startDate,
-        end_date: endDate,
-        billing_cycle: billingCycle,
-        amount_paid: price,
-        payment_method: paymentMethod,
-        payment_status: 'paid',
-        auto_renew: true,
-      });
-    } else {
-      await base44.entities.Subscription.create({
-        student_id: user?.id,
-        plan_id: selectedPlan.id,
-        plan_name: selectedPlan.name,
-        status: 'active',
-        trial_start_date: todayISO(),
-        trial_end_date: todayISO(),
-        start_date: startDate,
-        end_date: endDate,
-        billing_cycle: billingCycle,
-        amount_paid: price,
-        payment_method: paymentMethod,
-        payment_status: 'paid',
-        auto_renew: true,
-      });
-    }
+    queryClient.invalidateQueries({ queryKey: ['my-payments', 'my-subscription', 'access-status'] });
 
     setProcessing(false);
     setSuccess(true);
-    queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
-    queryClient.invalidateQueries({ queryKey: ['my-payments'] });
   };
 
   const handleBillingToggle = (): void => {

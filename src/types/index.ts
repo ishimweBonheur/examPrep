@@ -8,6 +8,34 @@ export interface User {
   level?: StudentLevel
   avatar_url?: string
   study_streak?: number
+  email_verified?: boolean
+  admin_approved?: boolean
+  created_date: string
+}
+
+export interface UserSettings {
+  email_notifications: boolean
+  push_notifications: boolean
+  profile_visibility: 'public' | 'private' | 'friends'
+  show_progress: boolean
+  language: string
+}
+
+export interface AccessStatus {
+  has_full_access: boolean
+  admin_approved: boolean
+}
+
+export interface ClassLevelRequest {
+  id: string
+  user_id: string
+  user_name?: string
+  user_email?: string
+  user_level?: StudentLevel
+  current_level?: StudentLevel
+  requested_level: StudentLevel
+  status: 'pending' | 'approved' | 'rejected'
+  admin_note?: string
   created_date: string
 }
 
@@ -47,6 +75,10 @@ export type DocumentCategory =
   | 'study_notes'
   | 'revision_guide'
   | 'syllabus'
+  | 'notes'
+  | 'assignments'
+  | 'exams'
+  | 'resources'
 
 export interface Document {
   id: string

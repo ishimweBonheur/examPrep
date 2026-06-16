@@ -2,6 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { PageLoader } from '@/components/shared/LoadingSkeleton'
 import PortalHeader from './PortalHeader'
+import PaymentGate from '@/components/PaymentGate'
 
 export default function PortalLayout() {
   const { user, isLoadingAuth } = useAuth()
@@ -14,7 +15,9 @@ export default function PortalLayout() {
       <PortalHeader />
       <main className="flex-1 w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-8 py-6">
-          <Outlet />
+          <PaymentGate>
+            <Outlet />
+          </PaymentGate>
         </div>
       </main>
     </div>

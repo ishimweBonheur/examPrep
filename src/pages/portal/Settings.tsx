@@ -1,34 +1,50 @@
-import { useState, useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/hooks/use-auth'
-import { base44 } from '@/api/client'
+import { fetchUserSettings, updateUserSettings, requestClassLevelChange, fetchMyClassLevelRequests } from '@/api/http'
 import toast from 'react-hot-toast'
-import { Moon, Bell, Globe, Shield, GraduationCap } from 'lucide-react'
+import { Bell, Shield, GraduationCap, Globe, Loader2 } from 'lucide-react'
 import { STUDENT_LEVELS, levelLabel } from '@/lib/student-level'
 import type { StudentLevel } from '@/types'
 
 export default function Settings() {
-  const { user, logout, checkUserAuth } = useAuth()
+  const { user, logout } = useAuth()
   const queryClient = useQueryClient()
-  const [emailNotifs, setEmailNotifs] = useState(true)
-  const [pushNotifs, setPushNotifs] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
-  const [language, setLanguage] = useState('en')
-  const [level, setLevel] = useState<StudentLevel>(user?.level ?? 'S3')
+  const [pendingLevel, setPendingLevel] = useState<StudentLevel | null>(null)
+  const level = pendingLevel ?? user?.level ?? 'S3'
   const [savingLevel, setSavingLevel] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
 
-  useEffect(() => {
-    if (user?.level) setLevel(user.level)
-  }, [user?.level])
+  const { data: settings, isLoading: loadingSettings } = useQuery({
+    queryKey: ['user-settings', user?.id],
+    queryFn: fetchUserSettings,
+    enabled: !!user?.id,
+  })
 
-  const toggleDark = (on: boolean) => {
-    setDarkMode(on)
-    document.documentElement.classList.toggle('dark', on)
+  const { data: levelRequests = [] } = useQuery({
+    queryKey: ['class-level-requests', user?.id],
+    queryFn: fetchMyClassLevelRequests,
+    enabled: !!user?.id,
+  })
+
+  const pendingRequest = levelRequests.find((r) => r.status === 'pending')
+
+  const persistSettings = async (patch: Parameters<typeof updateUserSettings>[0]) => {
+    setSavingSettings(true)
+    try {
+      await updateUserSettings(patch)
+      queryClient.invalidateQueries({ queryKey: ['user-settings'] })
+      toast.success('Settings saved')
+    } catch {
+      toast.error('Could not save settings')
+    } finally {
+      setSavingSettings(false)
+    }
   }
 
   const handleLogout = () => logout(true)
@@ -38,16 +54,17 @@ export default function Settings() {
   }
 
   const handleLevelChange = async (value: StudentLevel) => {
-    setLevel(value)
+    if (value === user?.level) return
+    setPendingLevel(value)
     if (!user?.id) return
     setSavingLevel(true)
     try {
-      await base44.entities.User.update(user.id, { level: value })
-      await checkUserAuth()
-      queryClient.invalidateQueries()
-      toast.success(`Your class level is now ${levelLabel(value)}`)
-    } catch {
-      toast.error('Could not update class level')
+      await requestClassLevelChange(value)
+      toast.success('Class level change request submitted for admin approval')
+      queryClient.invalidateQueries({ queryKey: ['class-level-requests'] })
+    } catch (err: unknown) {
+      setPendingLevel(null)
+      toast.error(err instanceof Error ? err.message : 'Could not submit class level request')
     } finally {
       setSavingLevel(false)
     }
@@ -64,10 +81,15 @@ export default function Settings() {
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><GraduationCap className="w-5 h-5" /> Class Level</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Set your senior level to see the right past papers, mock exams, notes, and practice content.
+            Your class level was set at registration. To change it, select a new level — admin approval is required.
           </p>
+          {pendingRequest && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Pending request to change to {levelLabel(pendingRequest.requested_level)}. Waiting for admin approval.
+            </p>
+          )}
           <Select value={level} onValueChange={(v) => handleLevelChange(v as StudentLevel)}>
-            <SelectTrigger className={savingLevel ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
+            <SelectTrigger className={pendingRequest || savingLevel ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
             <SelectContent>
               {STUDENT_LEVELS.map((l) => (
                 <SelectItem key={l} value={l}>{levelLabel(l)} ({l})</SelectItem>
@@ -80,13 +102,67 @@ export default function Settings() {
       <Card>
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Bell className="w-5 h-5" /> Notifications</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="email-notifs">Email notifications</Label>
-            <Switch id="email-notifs" checked={emailNotifs} onCheckedChange={setEmailNotifs} />
+          {loadingSettings ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email-notifs">Email notifications</Label>
+                <Switch
+                  id="email-notifs"
+                  checked={settings?.email_notifications ?? true}
+                  disabled={savingSettings}
+                  onCheckedChange={(v) => {
+                    void persistSettings({ email_notifications: v })
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="push-notifs">Push notifications</Label>
+                <Switch
+                  id="push-notifs"
+                  checked={settings?.push_notifications ?? true}
+                  disabled={savingSettings}
+                  onCheckedChange={(v) => {
+                    void persistSettings({ push_notifications: v })
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Shield className="w-5 h-5" /> Privacy</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Profile visibility</Label>
+            <Select
+              value={settings?.profile_visibility ?? 'public'}
+              onValueChange={(v) => {
+                const val = v as 'public' | 'private' | 'friends'
+                void persistSettings({ profile_visibility: val })
+              }}
+            >
+              <SelectTrigger className={savingSettings ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">Public — visible to community</SelectItem>
+                <SelectItem value="friends">Friends only</SelectItem>
+                <SelectItem value="private">Private</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center justify-between">
-            <Label htmlFor="push-notifs">Push notifications</Label>
-            <Switch id="push-notifs" checked={pushNotifs} onCheckedChange={setPushNotifs} />
+            <Label htmlFor="show-progress">Show progress on profile</Label>
+            <Switch
+              id="show-progress"
+              checked={settings?.show_progress ?? true}
+              disabled={savingSettings}
+              onCheckedChange={(v) => {
+                void persistSettings({ show_progress: v })
+              }}
+            />
           </div>
         </CardContent>
       </Card>
@@ -94,14 +170,15 @@ export default function Settings() {
       <Card>
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Globe className="w-5 h-5" /> Preferences</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="dark-mode" className="flex items-center gap-2"><Moon className="w-4 h-4" /> Dark mode</Label>
-            <Switch id="dark-mode" checked={darkMode} onCheckedChange={toggleDark} />
-          </div>
           <div className="space-y-2">
             <Label>Language</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={settings?.language ?? 'en'}
+              onValueChange={(v) => {
+                void persistSettings({ language: v })
+              }}
+            >
+              <SelectTrigger className={savingSettings ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
                 <SelectItem value="rw">Kinyarwanda</SelectItem>

@@ -44,6 +44,8 @@ const Courses = lazy(() => import('@/pages/portal/Courses'))
 const Profile = lazy(() => import('@/pages/portal/Profile'))
 const Notifications = lazy(() => import('@/pages/portal/Notifications'))
 const Settings = lazy(() => import('@/pages/portal/Settings'))
+const HelpCenter = lazy(() => import('@/pages/portal/HelpCenter'))
+const Demo = lazy(() => import('@/pages/Demo'))
 
 const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'))
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
@@ -114,6 +116,7 @@ function AuthenticatedApp() {
           <Route path="features" element={<Features />} />
           <Route path="community" element={<CommunityHub />} />
           <Route path="pricing" element={<Pricing />} />
+          <Route path="demo" element={<Demo />} />
         </Route>
 
         <Route path="/login" element={<Login />} />
@@ -140,6 +143,7 @@ function AuthenticatedApp() {
             <Route path="/dashboard/profile" element={<Profile />} />
             <Route path="/dashboard/notifications" element={<Notifications />} />
             <Route path="/dashboard/settings" element={<Settings />} />
+            <Route path="/dashboard/help" element={<HelpCenter />} />
           </Route>
 
           <Route path="/portal" element={<PortalEntryRedirect />} />

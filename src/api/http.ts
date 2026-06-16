@@ -174,3 +174,84 @@ export function fetchPublicStats() {
 export function fetchUserAchievements(userId: string) {
   return apiGet<Achievement[]>(`/achievements/user/${userId}`)
 }
+
+export function fetchAccessStatus() {
+  return apiGet<import('@/types').AccessStatus>('/auth/access-status')
+}
+
+export function fetchUserSettings() {
+  return apiGet<import('@/types').UserSettings>('/settings')
+}
+
+export function updateUserSettings(data: Partial<import('@/types').UserSettings>) {
+  return apiPatch<import('@/types').UserSettings>('/settings', data)
+}
+
+export function fetchUnreadNotificationCount() {
+  return apiGet<{ count: number }>('/notifications/unread-count')
+}
+
+export function startSubscriptionTrial() {
+  return apiPost<import('@/types').Subscription>('/subscriptions/trial')
+}
+
+export function approveStudent(studentId: string) {
+  return apiPost<import('@/types').User>(`/users/${studentId}/approve`)
+}
+
+export function requestClassLevelChange(requested_level: import('@/types').StudentLevel) {
+  return apiPost<import('@/types').ClassLevelRequest>('/class-level-requests', { requested_level })
+}
+
+export function fetchMyClassLevelRequests() {
+  return apiGet<import('@/types').ClassLevelRequest[]>('/class-level-requests/mine')
+}
+
+export function fetchClassLevelRequests(status?: string) {
+  const qs = status ? `?status=${status}` : ''
+  return apiGet<import('@/types').ClassLevelRequest[]>(`/class-level-requests${qs}`)
+}
+
+export function reviewClassLevelRequest(id: string, action: 'approve' | 'reject', admin_note?: string) {
+  return apiPatch<import('@/types').ClassLevelRequest>(`/class-level-requests/${id}/review`, { action, admin_note })
+}
+
+export async function streamHelpChat(query: string, onChunk: (text: string) => void): Promise<void> {
+  const res = await fetch(`${API_BASE}/help/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ query }),
+  })
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({})) as { message?: string }
+    throw new ApiRequestError(res.status, json.message || 'Help request failed')
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) throw new ApiRequestError(500, 'No response stream')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      try {
+        const payload = JSON.parse(line.slice(6)) as { text?: string; error?: string; done?: boolean }
+        if (payload.error) throw new ApiRequestError(500, payload.error)
+        if (payload.text) onChunk(payload.text)
+      } catch (e) {
+        if (e instanceof ApiRequestError) throw e
+      }
+    }
+  }
+}

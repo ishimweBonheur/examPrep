@@ -37,9 +37,14 @@ export default function ForgotPassword() {
       }
     >
       {sent ? (
-        <p className="text-sm text-foreground text-center">
-          If an account exists with that email, you'll receive a password reset link shortly.
-        </p>
+        <div className="space-y-4 text-center">
+          <p className="text-sm text-foreground">
+            If an account exists with that email, you'll receive a 6-digit verification code shortly.
+          </p>
+          <Link to={`/reset-password?email=${encodeURIComponent(email)}`} className="inline-flex items-center justify-center w-full h-10 px-4 rounded-md border border-input bg-background hover:bg-muted text-sm font-medium">
+            Enter verification code
+          </Link>
+        </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

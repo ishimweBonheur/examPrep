@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Upload, FileText, FileImage, File, Trash2, Eye, Plus, Loader2, type LucideIcon } from 'lucide-react'
 import { formatDate } from '@/lib/format-date'
 import { categoryColor, categoryLabel, DOCUMENT_CATEGORY_LABELS } from '@/lib/document-categories'
+import { STUDENT_LEVELS, levelLabel } from '@/lib/student-level'
 import type { Document, DocumentCategory, Subject } from '@/types'
 
 interface DocumentForm {
@@ -37,6 +38,7 @@ export default function AdminDocuments() {
   const [uploading, setUploading] = useState(false)
   const [subjectFilter, setSubjectFilter] = useState(ALL_FILTER)
   const [categoryFilter, setCategoryFilter] = useState(ALL_FILTER)
+  const [levelFilter, setLevelFilter] = useState(ALL_FILTER)
   const [form, setForm] = useState<DocumentForm>({
     title: '',
     description: '',
@@ -54,11 +56,12 @@ export default function AdminDocuments() {
   })
 
   const { data: documents = [], isLoading } = useQuery<Document[]>({
-    queryKey: ['admin-documents', subjectFilter, categoryFilter],
+    queryKey: ['admin-documents', subjectFilter, categoryFilter, levelFilter],
     queryFn: async () => {
       const query: Record<string, string> = {}
       if (subjectFilter !== ALL_FILTER) query.subject_id = subjectFilter
       if (categoryFilter !== ALL_FILTER) query.category = categoryFilter
+      if (levelFilter !== ALL_FILTER) query.level = levelFilter
       return Object.keys(query).length > 0
         ? (base44.entities.Document.filter(query, '-created_date', 200) as Promise<Document[]>)
         : (base44.entities.Document.list('-created_date', 200) as Promise<Document[]>)
@@ -139,8 +142,17 @@ export default function AdminDocuments() {
             ))}
           </SelectContent>
         </Select>
-        {(subjectFilter !== ALL_FILTER || categoryFilter !== ALL_FILTER) && (
-          <Button variant="ghost" size="sm" onClick={() => { setSubjectFilter(ALL_FILTER); setCategoryFilter(ALL_FILTER) }}>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="All Levels" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_FILTER}>All Levels</SelectItem>
+            {STUDENT_LEVELS.map((l) => (
+              <SelectItem key={l} value={l}>{levelLabel(l)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(subjectFilter !== ALL_FILTER || categoryFilter !== ALL_FILTER || levelFilter !== ALL_FILTER) && (
+          <Button variant="ghost" size="sm" onClick={() => { setSubjectFilter(ALL_FILTER); setCategoryFilter(ALL_FILTER); setLevelFilter(ALL_FILTER) }}>
             Clear filters
           </Button>
         )}
