@@ -200,6 +200,26 @@ export interface Testimonial {
   updated_date: string
 }
 
+export interface PublicStats {
+  subject_count: number
+  question_count: number
+  student_count: number
+  community_post_count: number
+  document_count: number
+  testimonial_count: number
+  average_rating: number
+  satisfaction_rate: number
+  subjects: Array<{
+    id: string
+    name: string
+    description?: string
+    icon?: string
+    level: string
+    topic_count: number
+    question_count: number
+  }>
+}
+
 /** Normalized question shape for practice / mock exam UI */
 export interface PracticeQuestion {
   question_text: string

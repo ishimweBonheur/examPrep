@@ -11,33 +11,12 @@ import { useAuth } from '@/hooks/use-auth'
 import ClassificationBanner from '@/components/portal/ClassificationBanner'
 import { useStudentLevel } from '@/hooks/use-student-level'
 import { levelLabel, matchesStudentLevel } from '@/lib/student-level'
+import { questionToPractice } from '@/lib/practice-utils'
+import type { Subject as ApiSubject, PracticeQuestion } from '@/types'
 
-interface Option {
-  label: string;
-  text: string;
-}
-
-interface Question {
-  question_text: string;
-  options: Option[];
-  correct_answer: string;
-  explanation?: string;
-  difficulty?: string;
-}
-
-interface Answer extends Question {
+interface Answer extends PracticeQuestion {
   selected_answer: string;
   is_correct: boolean;
-}
-
-interface Subject {
-  id: string;
-  name: string;
-  level?: string;
-}
-
-interface LLMResponse {
-  questions: Question[];
 }
 
 export default function MockExam() {
@@ -46,7 +25,7 @@ export default function MockExam() {
   const queryClient = useQueryClient();
 
   const [selectedSubject, setSelectedSubject] = useState<string>('');
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [showResult, setShowResult] = useState<boolean>(false);
@@ -56,10 +35,10 @@ export default function MockExam() {
   const [timer, setTimer] = useState<number>(0);
   const [started, setStarted] = useState<boolean>(false);
 
-  const { data: subjects = [] } = useQuery<Subject[]>({
+  const { data: subjects = [] } = useQuery<ApiSubject[]>({
     queryKey: ['subjects', studentLevel],
     queryFn: async () => {
-      const all = await base44.entities.Subject.list() as Subject[];
+      const all = await base44.entities.Subject.list();
       return all.filter((s) => matchesStudentLevel(s.level, studentLevel));
     },
   });
@@ -82,30 +61,42 @@ export default function MockExam() {
 
   const generateMockExam = async (): Promise<void> => {
     setGenerating(true);
-    const subjectName = subjects.find((s: Subject) => s.id === selectedSubject)?.name || 'General';
-    
+    const subjectName = subjects.find((s) => s.id === selectedSubject)?.name || 'General';
+
+    const bank = await base44.entities.Question.filter({
+      subject_id: selectedSubject,
+      level: studentLevel,
+    });
+
+    if (bank.length >= 5) {
+      const shuffled = [...bank].sort(() => Math.random() - 0.5).slice(0, Math.min(15, bank.length));
+      setQuestions(shuffled.map(questionToPractice));
+      setGenerating(false);
+      setStarted(true);
+      return;
+    }
+
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Generate a mock national exam for Rwandan ${levelLabel(studentLevel)} students in ${subjectName}. Create 15 multiple choice questions covering material appropriate for ${studentLevel} level. Include questions of varying difficulty (easy, medium, hard). Each question should have 4 options (A, B, C, D) with one correct answer and a brief explanation. Make them similar in style and difficulty to actual Rwandan national exams.`,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          questions: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                question_text: { type: "string" },
-                options: { type: "array", items: { type: "object", properties: { label: { type: "string" }, text: { type: "string" } } } },
-                correct_answer: { type: "string" },
-                explanation: { type: "string" },
-                difficulty: { type: "string" }
-              }
-            }
-          }
-        }
-      }
-    }) as LLMResponse;
-    setQuestions(result.questions || []);
+    }) as { questions?: Array<{ question_text: string; options: string[]; correct_answer: number; explanation?: string }> };
+
+    const generated = (result.questions || []).slice(0, 15).map((q) =>
+      questionToPractice({
+        id: '',
+        subject_id: selectedSubject,
+        topic: '',
+        year: new Date().getFullYear(),
+        difficulty: 'medium',
+        question_text: q.question_text,
+        options: q.options,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation,
+        level: studentLevel,
+        created_date: '',
+      })
+    );
+
+    setQuestions(generated);
     setGenerating(false);
     setStarted(true);
   };
@@ -136,12 +127,11 @@ export default function MockExam() {
       student_id: user?.id,
       subject_id: selectedSubject,
       type: 'mock_exam',
-      questions: allAnswers,
       score,
       total_questions: allAnswers.length,
       correct_count: correctCount,
       completed: true,
-      time_taken_seconds: timer,
+      time_spent_seconds: timer,
     });
     queryClient.invalidateQueries({ queryKey: ['exam-attempts'] });
   };
@@ -213,7 +203,7 @@ export default function MockExam() {
             <Select value={selectedSubject} onValueChange={setSelectedSubject}>
               <SelectTrigger className="max-w-xs mx-auto"><SelectValue placeholder="Select subject" /></SelectTrigger>
               <SelectContent>
-                {subjects.map((s: Subject) => (
+                {subjects.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -244,7 +234,7 @@ export default function MockExam() {
               {questions[currentIdx]?.question_text}
             </p>
             <div className="space-y-2.5">
-              {(questions[currentIdx]?.options || []).map((opt: Option, i: number) => (
+              {(questions[currentIdx]?.options || []).map((opt, i: number) => (
                 <button
                   key={i}
                   onClick={() => !showResult && setSelectedAnswer(opt.label)}

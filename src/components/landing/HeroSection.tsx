@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { fetchPublicStats } from '@/api/http';
 import AboutSection from './AboutSection';
 import Pricing from '@/pages/Pricing';
 import TestimonialsSection from './TestimonialsSection';
@@ -14,12 +16,22 @@ interface StatItem {
 export default function HeroSection() {
   const [counts, setCounts] = useState({ students: 0, questions: 0, subjects: 0, rating: 0 });
 
+  const { data: publicStats } = useQuery({
+    queryKey: ['public-stats'],
+    queryFn: fetchPublicStats,
+  });
+
   useEffect(() => {
-    const targets = { students: 1500, questions: 5000, subjects: 3, rating: 98 };
+    const targets = {
+      students: Math.max(publicStats?.student_count ?? 1, 1),
+      questions: Math.max(publicStats?.question_count ?? 1, 1),
+      subjects: Math.max(publicStats?.subject_count ?? 1, 1),
+      rating: Math.max(publicStats?.satisfaction_rate ?? 95, 1),
+    };
     const duration = 2000;
     const steps = 60;
     const interval = duration / steps;
-    
+
     let step = 0;
     const timer = setInterval(() => {
       step++;
@@ -29,12 +41,12 @@ export default function HeroSection() {
         subjects: Math.min(Math.floor((targets.subjects / steps) * step), targets.subjects),
         rating: Math.min(Math.floor((targets.rating / steps) * step), targets.rating),
       });
-      
+
       if (step >= steps) clearInterval(timer);
     }, interval);
-    
+
     return () => clearInterval(timer);
-  }, []);
+  }, [publicStats]);
 
   const features = [
     "AI-Powered Learning",

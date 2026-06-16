@@ -2,27 +2,34 @@ import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { User, Trophy, Flame, Target, BookOpen, Camera, GraduationCap } from 'lucide-react'
+import { User, Trophy, Flame, Target, BookOpen, Camera, GraduationCap, LucideIcon } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
+import { fetchUserAchievements } from '@/api/http'
 import { useStudentLevel } from '@/hooks/use-student-level'
 import { levelLabel } from '@/lib/student-level'
-import type { ExamAttempt } from '@/types'
+import type { ExamAttempt, Achievement } from '@/types'
 
-const achievements = [
-  { id: '1', title: 'First Practice', description: 'Complete your first practice session', icon: Target, unlocked: true },
-  { id: '2', title: 'Week Warrior', description: '7-day study streak', icon: Flame, unlocked: true },
-  { id: '3', title: 'Mock Master', description: 'Score 80%+ on a mock exam', icon: Trophy, unlocked: false },
-  { id: '4', title: 'Bookworm', description: 'Complete all subject topics', icon: BookOpen, unlocked: false },
-]
+const iconMap: Record<string, LucideIcon> = {
+  Target,
+  Flame,
+  Trophy,
+  BookOpen,
+}
 
 export default function Profile() {
   const { user } = useAuth()
   const studentLevel = useStudentLevel()
 
   const { data: attempts = [] } = useQuery<ExamAttempt[]>({
-    queryKey: ['exam-attempts'],
-    queryFn: () => base44.entities.ExamAttempt.filter({ student_id: user?.id, completed: true }, '-created_date', 100) as Promise<ExamAttempt[]>,
+    queryKey: ['exam-attempts', user?.id],
+    queryFn: () => base44.entities.ExamAttempt.filter({ student_id: user?.id, completed: true }, '-created_date', 100),
+    enabled: !!user?.id,
+  })
+
+  const { data: achievements = [] } = useQuery<Achievement[]>({
+    queryKey: ['achievements', user?.id],
+    queryFn: () => fetchUserAchievements(user!.id),
     enabled: !!user?.id,
   })
 
@@ -81,17 +88,24 @@ export default function Profile() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Achievements</CardTitle></CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">
-          {achievements.map((a) => (
-            <div key={a.id} className={`flex items-center gap-3 p-4 rounded-xl border ${a.unlocked ? 'border-primary/20 bg-primary/5' : 'border-border opacity-60'}`}>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.unlocked ? 'bg-primary/10' : 'bg-muted'}`}>
-                <a.icon className={`w-5 h-5 ${a.unlocked ? 'text-primary' : 'text-muted-foreground'}`} />
-              </div>
-              <div>
-                <p className="font-medium text-sm">{a.title}</p>
-                <p className="text-xs text-muted-foreground">{a.description}</p>
-              </div>
-            </div>
-          ))}
+          {achievements.length === 0 ? (
+            <p className="text-sm text-muted-foreground col-span-2">Complete practice sessions to unlock achievements.</p>
+          ) : (
+            achievements.map((a) => {
+              const Icon = iconMap[a.icon] ?? Trophy
+              return (
+                <div key={a.id} className={`flex items-center gap-3 p-4 rounded-xl border ${a.unlocked ? 'border-primary/20 bg-primary/5' : 'border-border opacity-60'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.unlocked ? 'bg-primary/10' : 'bg-muted'}`}>
+                    <Icon className={`w-5 h-5 ${a.unlocked ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{a.title}</p>
+                    <p className="text-xs text-muted-foreground">{a.description}</p>
+                  </div>
+                </div>
+              )
+            })
+          )}
         </CardContent>
       </Card>
 

@@ -1,79 +1,101 @@
 import {
-  createEntityApi,
-  getCurrentUser,
-  setToken,
+  apiGet,
+  apiPost,
+  apiUpload,
+  createHttpEntityApi,
   clearToken,
-  findUserByEmail,
-  registerUser,
+  setToken,
   getToken,
-} from './mock-store'
+  isAuthenticated,
+  ApiRequestError,
+} from './http'
+import type {
+  User,
+  Subject,
+  Question,
+  Document,
+  ExamAttempt,
+  CommunityPost,
+  Message,
+  SubscriptionPlan,
+  Subscription,
+  Payment,
+  Notification,
+  Testimonial,
+} from '@/types'
 
-const delay = (ms = 150) => new Promise((r) => setTimeout(r, ms))
+export { isAuthenticated, getToken, setToken, clearToken, ApiRequestError }
 
 export const base44 = {
   auth: {
     async me() {
-      await delay()
-      const user = getCurrentUser()
-      if (!user) {
-        const err = new Error('Unauthorized') as Error & { status: number }
-        err.status = 401
+      try {
+        return await apiGet<User>('/auth/me')
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 401) {
+          clearToken()
+          const error = new Error('Unauthorized') as Error & { status: number }
+          error.status = 401
+          throw error
+        }
         throw err
       }
-      return user
     },
 
     async loginViaEmailPassword(email: string, password: string) {
-      await delay(300)
-      void password
-      const user = findUserByEmail(email)
-      if (!user) {
-        throw new Error('Invalid email or password')
-      }
-      setToken(user.id)
-      return { user, access_token: user.id }
+      const result = await apiPost<{ user: User; access_token: string }>(
+        '/auth/login',
+        { email, password },
+        false
+      )
+      setToken(result.access_token)
+      return result
     },
 
     loginWithProvider(_provider: string, redirectUrl: string) {
       void _provider
-      const user = findUserByEmail('student@examprep.rw')
-      if (user) setToken(user.id)
-      window.location.href = redirectUrl || '/dashboard'
+      void apiPost<{ user: User; access_token: string }>(
+        '/auth/login',
+        { email: 'student@examprep.rw', password: 'password123' },
+        false
+      )
+        .then((result) => {
+          setToken(result.access_token)
+          window.location.href = redirectUrl || '/dashboard'
+        })
+        .catch(() => {
+          window.location.href = '/login'
+        })
     },
 
     async register({ email, password, full_name }: { email: string; password: string; full_name?: string }) {
-      await delay(300)
-      if (findUserByEmail(email)) throw new Error('Email already registered')
-      void password
-      registerUser(email, password, full_name)
-      return { success: true, requiresOtp: true }
+      return apiPost<{ success: boolean; requiresOtp: boolean }>(
+        '/auth/register',
+        { email, password, full_name },
+        false
+      )
     },
 
     async verifyOtp({ email, otpCode }: { email: string; otpCode: string }) {
-      await delay(300)
-      if (otpCode !== '123456') throw new Error('Invalid OTP code')
-      const user = findUserByEmail(email)
-      if (!user) throw new Error('User not found')
-      setToken(user.id)
-      return { access_token: user.id, user }
+      const result = await apiPost<{ access_token: string; user: User }>(
+        '/auth/verify-otp',
+        { email, otpCode },
+        false
+      )
+      setToken(result.access_token)
+      return result
     },
 
     async resendOtp(email: string) {
-      await delay(200)
-      void email
-      return { success: true }
+      return apiPost<{ success: boolean }>('/auth/resend-otp', { email }, false)
     },
 
     async resetPasswordRequest(email: string) {
-      await delay(300)
-      void email
-      return { success: true }
+      return apiPost<{ success: boolean }>('/auth/reset-password-request', { email }, false)
     },
 
     async resetPassword(payload: { resetToken: string; newPassword: string }) {
-      await delay(300)
-      void payload
-      return { success: true }
+      return apiPost<{ success: boolean }>('/auth/reset-password', payload, false)
     },
 
     setToken(token: string) {
@@ -92,30 +114,28 @@ export const base44 = {
   },
 
   entities: {
-    User: createEntityApi('users'),
-    Subject: createEntityApi('subjects'),
-    Question: createEntityApi('questions'),
-    Document: createEntityApi('documents'),
-    ExamAttempt: createEntityApi('examAttempts'),
-    CommunityPost: createEntityApi('communityPosts'),
-    Message: createEntityApi('messages'),
-    SubscriptionPlan: createEntityApi('subscriptionPlans'),
-    Subscription: createEntityApi('subscriptions'),
-    Payment: createEntityApi('payments'),
-    Notification: createEntityApi('notifications'),
-    Testimonial: createEntityApi('testimonials'),
+    User: createHttpEntityApi<User>('users'),
+    Subject: createHttpEntityApi<Subject>('subjects'),
+    Question: createHttpEntityApi<Question>('questions'),
+    Document: createHttpEntityApi<Document>('documents'),
+    ExamAttempt: createHttpEntityApi<ExamAttempt>('exam-attempts'),
+    CommunityPost: createHttpEntityApi<CommunityPost>('community-posts'),
+    Message: createHttpEntityApi<Message>('messages'),
+    SubscriptionPlan: createHttpEntityApi<SubscriptionPlan>('subscription-plans'),
+    Subscription: createHttpEntityApi<Subscription>('subscriptions'),
+    Payment: createHttpEntityApi<Payment>('payments'),
+    Notification: createHttpEntityApi<Notification>('notifications'),
+    Testimonial: createHttpEntityApi<Testimonial>('testimonials'),
   },
 
   integrations: {
     Core: {
       async UploadFile({ file }: { file: File }) {
-        await delay(500)
-        const url = URL.createObjectURL(file)
-        return { file_url: url }
+        return apiUpload(file)
       },
 
       async InvokeLLM({ prompt }: { prompt: string; [key: string]: unknown }) {
-        await delay(800)
+        await new Promise((r) => setTimeout(r, 800))
         const lower = prompt.toLowerCase()
 
         if (lower.includes('generate') && lower.includes('question')) {
@@ -158,10 +178,6 @@ export const base44 = {
       },
     },
   },
-}
-
-export function isAuthenticated(): boolean {
-  return !!getToken()
 }
 
 export default base44
