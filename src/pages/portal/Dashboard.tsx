@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
+import { fetchStudentProgress } from '@/api/stats'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import ClassificationBanner from '@/components/portal/ClassificationBanner'
@@ -78,11 +79,7 @@ const resourceLinks = [
   },
 ]
 
-const subjectsFallback = [
-  { name: 'Biology', progress: 75, color: 'bg-green-500', questions: 120 },
-  { name: 'Chemistry', progress: 45, color: 'bg-blue-500', questions: 95 },
-  { name: 'Entrepreneurship', progress: 60, color: 'bg-amber-500', questions: 80 },
-]
+const subjectColors = ['bg-green-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500', 'bg-rose-500']
 
 function getGreeting(): string {
   const hour = new Date().getHours()
@@ -112,14 +109,32 @@ export default function Dashboard() {
     },
   })
 
+  const { data: progressData } = useQuery({
+    queryKey: ['student-progress', user?.id],
+    queryFn: () => fetchStudentProgress(),
+    enabled: !!user?.id,
+  })
+
+  const progressMap = new Map(
+    (progressData?.subject_progress ?? []).map((s) => [s.name, s])
+  )
+
   const subjects = levelSubjects.length > 0
-    ? levelSubjects.map((s, i) => ({
+    ? levelSubjects.map((s, i) => {
+        const prog = progressMap.get(s.name)
+        return {
+          name: s.name,
+          progress: prog?.progress ?? 0,
+          color: subjectColors[i % subjectColors.length] ?? 'bg-primary',
+          questions: prog?.question_count ?? 0,
+        }
+      })
+    : (progressData?.subject_progress ?? []).map((s, i) => ({
         name: s.name,
-        progress: s.progress ?? subjectsFallback[i]?.progress ?? 0,
-        color: subjectsFallback[i]?.color ?? 'bg-primary',
-        questions: subjectsFallback[i]?.questions ?? 0,
+        progress: s.progress,
+        color: subjectColors[i % subjectColors.length] ?? 'bg-primary',
+        questions: s.question_count,
       }))
-    : subjectsFallback
 
   const { data: attempts = [], isLoading } = useQuery<ExamAttempt[]>({
     queryKey: ['exam-attempts'],

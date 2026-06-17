@@ -6,6 +6,7 @@ import {
 import { base44 } from '@/api/client'
 import { cn } from '@/lib/utils'
 import { adminNavItems } from '@/lib/admin-nav'
+import { useMessageUnreadCount } from '@/hooks/use-message-unread'
 
 interface AdminSidebarProps {
   collapsed: boolean
@@ -19,11 +20,13 @@ function SidebarLink({
   isActive,
   collapsed,
   onClick,
+  badge,
 }: {
   item: { path: string; icon: LucideIcon; label: string }
   isActive: boolean
   collapsed: boolean
   onClick?: () => void
+  badge?: number
 }) {
   return (
     <Link
@@ -40,8 +43,24 @@ function SidebarLink({
       {isActive && (
         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-primary" />
       )}
-      <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-primary')} />
-      {!collapsed && <span>{item.label}</span>}
+      <span className="relative shrink-0">
+        <item.icon className={cn('w-5 h-5', isActive && 'text-primary')} />
+        {badge !== undefined && badge > 0 && collapsed && (
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </span>
+      {!collapsed && (
+        <>
+          <span className="flex-1">{item.label}</span>
+          {badge !== undefined && badge > 0 && (
+            <span className="min-w-5 h-5 px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+        </>
+      )}
     </Link>
   )
 }
@@ -53,6 +72,7 @@ export default function AdminSidebar({
   onMobileClose,
 }: AdminSidebarProps) {
   const location = useLocation()
+  const { data: messageUnread = 0 } = useMessageUnreadCount()
 
   const isActive = (path: string) =>
     path === '/admin'
@@ -99,6 +119,7 @@ export default function AdminSidebar({
               isActive={isActive(item.path)}
               collapsed={collapsed}
               onClick={onMobileClose}
+              badge={item.path === '/admin/messages' ? messageUnread : undefined}
             />
           ))}
         </div>

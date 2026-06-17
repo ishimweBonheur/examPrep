@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
+import { fetchStudentProgress } from '@/api/stats'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { TrendingUp, BookOpen, Clock, Flame } from 'lucide-react'
@@ -18,7 +19,7 @@ import {
   Filler,
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
-import type { ExamAttempt, Subject } from '@/types'
+import type { ExamAttempt } from '@/types'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler)
 
@@ -31,12 +32,13 @@ export default function ProgressPage() {
     enabled: !!user?.id,
   })
 
-  const { data: subjects = [], isLoading: loadingSubjects } = useQuery<Subject[]>({
-    queryKey: ['subjects'],
-    queryFn: () => base44.entities.Subject.list() as Promise<Subject[]>,
+  const { data: progressData, isLoading: loadingProgress } = useQuery({
+    queryKey: ['student-progress', user?.id],
+    queryFn: () => fetchStudentProgress(),
+    enabled: !!user?.id,
   })
 
-  if (loadingAttempts || loadingSubjects) return <PageLoader />
+  if (loadingAttempts || loadingProgress) return <PageLoader />
 
   const completed = attempts.filter((a) => a.completed)
   const avgScore = completed.length
@@ -57,14 +59,16 @@ export default function ProgressPage() {
   }
 
   const timeChart = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: progressData?.weekly_time.labels ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [{
       label: 'Minutes studied',
-      data: [45, 30, 60, 25, 50, 90, 40],
+      data: progressData?.weekly_time.data ?? [0, 0, 0, 0, 0, 0, 0],
       backgroundColor: 'hsl(152 60% 45%)',
       borderRadius: 8,
     }],
   }
+
+  const subjectProgress = progressData?.subject_progress ?? []
 
   return (
     <div className="space-y-6">
@@ -97,26 +101,36 @@ export default function ProgressPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="text-lg">Performance Trend</CardTitle></CardHeader>
-          <CardContent><Line data={scoreChart} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } }} /></CardContent>
+          <CardContent>
+            <Line data={scoreChart} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } }} />
+          </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-lg">Time Spent This Week</CardTitle></CardHeader>
-          <CardContent><Bar data={timeChart} options={{ responsive: true, plugins: { legend: { display: false } } }} /></CardContent>
+          <CardContent>
+            <Bar data={timeChart} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+          </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Subject Progress</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {subjects.map((sub) => (
-            <div key={sub.id}>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-medium">{sub.name}</span>
-                <span className="text-muted-foreground">{sub.progress ?? 0}%</span>
+          {subjectProgress.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Complete practice sessions to see subject progress.</p>
+          ) : (
+            subjectProgress.map((sub) => (
+              <div key={sub.subject_id}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="font-medium">{sub.name}</span>
+                  <span className="text-muted-foreground">
+                    {sub.progress}% · {sub.attempts} session{sub.attempts !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <Progress value={sub.progress} />
               </div>
-              <Progress value={sub.progress ?? 0} />
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

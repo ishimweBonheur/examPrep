@@ -7,9 +7,112 @@ export interface TutorMessage {
   content: string
 }
 
+export interface TutorSession {
+  id: string
+  subject?: string | null
+  created_date: string
+  updated_date: string
+}
+
+export interface TutorUploadedImage {
+  id: string
+  mime_type: string
+  size_bytes: number
+  original_name: string
+  created_date: string
+}
+
+export async function createTutorSession(subject?: string) {
+  const res = await fetch(`${API_BASE}/tutor/sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ subject }),
+  })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({})) as { message?: string }
+    throw new ApiRequestError(res.status, json.message || 'Failed to create tutor session')
+  }
+  const json = await res.json() as { data?: TutorSession }
+  if (!json.data) throw new ApiRequestError(500, 'Invalid tutor session response')
+  return json.data
+}
+
+export async function listTutorSessions() {
+  const res = await fetch(`${API_BASE}/tutor/sessions`, {
+    headers: {
+      ...authHeaders(),
+    },
+  })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({})) as { message?: string }
+    throw new ApiRequestError(res.status, json.message || 'Failed to load tutor sessions')
+  }
+  const json = await res.json() as { data?: TutorSession[] }
+  if (!json.data) throw new ApiRequestError(500, 'Invalid tutor sessions response')
+  return json.data
+}
+
+export async function fetchTutorSession(sessionId: string) {
+  const res = await fetch(`${API_BASE}/tutor/sessions/${sessionId}`, {
+    headers: {
+      ...authHeaders(),
+    },
+  })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({})) as { message?: string }
+    throw new ApiRequestError(res.status, json.message || 'Failed to load tutor session')
+  }
+  const json = await res.json() as { data?: { session: TutorSession; messages: TutorMessage[] } }
+  if (!json.data) throw new ApiRequestError(500, 'Invalid tutor session response')
+  return json.data
+}
+
+export async function listTutorImages(sessionId: string) {
+  const res = await fetch(`${API_BASE}/tutor/sessions/${sessionId}/images`, {
+    headers: {
+      ...authHeaders(),
+    },
+  })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({})) as { message?: string }
+    throw new ApiRequestError(res.status, json.message || 'Failed to load tutor images')
+  }
+  const json = await res.json() as { data?: TutorUploadedImage[] }
+  if (!json.data) throw new ApiRequestError(500, 'Invalid tutor images response')
+  return json.data
+}
+
+export async function uploadTutorImages(sessionId: string, images: File[]) {
+  if (!getToken()) {
+    throw new ApiRequestError(401, 'Unauthorized')
+  }
+  const form = new FormData()
+  for (const image of images) {
+    form.append('images', image)
+  }
+  const res = await fetch(`${API_BASE}/tutor/sessions/${sessionId}/images`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders(),
+    },
+    body: form,
+  })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({})) as { message?: string }
+    throw new ApiRequestError(res.status, json.message || 'Failed to upload tutor images')
+  }
+  const json = await res.json() as { data?: TutorUploadedImage[] }
+  if (!json.data) throw new ApiRequestError(500, 'Invalid tutor upload response')
+  return json.data
+}
+
 export interface StreamTutorChatOptions {
-  messages: TutorMessage[]
-  subject?: string
+  sessionId: string
+  message: string
+  imageIds?: string[]
   onChunk: (text: string) => void
   onDone: () => void
   onError: (message: string) => void
@@ -22,8 +125,9 @@ function authHeaders(): HeadersInit {
 }
 
 export async function streamTutorChat({
-  messages,
-  subject,
+  sessionId,
+  message,
+  imageIds,
   onChunk,
   onDone,
   onError,
@@ -33,14 +137,14 @@ export async function streamTutorChat({
     throw new ApiRequestError(401, 'Unauthorized')
   }
 
-  const res = await fetch(`${API_BASE}/tutor/chat`, {
+  const res = await fetch(`${API_BASE}/tutor/sessions/${sessionId}/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
       ...authHeaders(),
     },
-    body: JSON.stringify({ messages, subject }),
+    body: JSON.stringify({ message, image_ids: imageIds }),
     signal,
   })
 

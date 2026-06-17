@@ -10,7 +10,8 @@ import {
   Microscope, FlaskConical, Lightbulb, Bell, Settings, ChevronRight,
   Phone,
 } from 'lucide-react'
-import type { User, Subject, Question, ExamAttempt, Message } from '@/types'
+import type { User, Subject, Question, ExamAttempt } from '@/types'
+import { useMessageUnreadCount } from '@/hooks/use-message-unread'
 
 const subjectIcons: Record<string, typeof BookOpen> = {
   Biology: Microscope,
@@ -68,10 +69,7 @@ export default function AdminDashboard() {
     queryFn: () => base44.entities.ExamAttempt.list('-created_date', 100),
   })
 
-  const { data: unreadMsgs = [] } = useQuery<Message[]>({
-    queryKey: ['admin-unread-msgs'],
-    queryFn: () => base44.entities.Message.filter({ is_read: false }),
-  })
+  const { data: unreadCount = 0 } = useMessageUnreadCount()
 
   const studentList = students.filter((s) => s.role === 'student')
   const completedAttempts = attempts.filter((a) => a.completed)
@@ -131,7 +129,7 @@ export default function AdminDashboard() {
               {firstName} 👋
             </h1>
             <p className="text-white/85 mt-3 text-sm md:text-base leading-relaxed">
-              You have <strong>{unreadMsgs.length} unread messages</strong> and{' '}
+              You have <strong>{unreadCount} unread messages</strong> and{' '}
               <strong>{studentList.length} active students</strong>. Review platform activity below.
             </p>
             <Link to="/admin/messages">
@@ -282,7 +280,7 @@ export default function AdminDashboard() {
                 className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors relative"
               >
                 <Bell className="w-4 h-4" />
-                {unreadMsgs.length > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
                 )}
               </Link>
@@ -361,7 +359,7 @@ export default function AdminDashboard() {
           {[
             { icon: Users, label: 'Students', value: studentList.length },
             { icon: HelpCircle, label: 'Questions', value: questions.length },
-            { icon: MessageCircle, label: 'Unread', value: unreadMsgs.length },
+            { icon: MessageCircle, label: 'Unread', value: unreadCount },
           ].map((stat) => (
             <div key={stat.label} className="flex items-center justify-between py-1">
               <div className="flex items-center gap-2 text-muted-foreground">

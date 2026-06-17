@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { GraduationCap, Bell, Menu, X, LogOut, User, Settings, HelpCircle } from 'lucide-react'
 import { base44 } from '@/api/client'
 import { fetchUnreadNotificationCount } from '@/api/http'
+import { useMessageUnreadCount } from '@/hooks/use-message-unread'
 import { useAuth } from '@/hooks/use-auth'
 import { useStudentLevel } from '@/hooks/use-student-level'
 import { levelLabel } from '@/lib/student-level'
@@ -48,6 +49,7 @@ export default function PortalHeader() {
     refetchInterval: 60_000,
   })
   const notificationCount = unreadData?.count ?? 0
+  const { data: messageUnread = 0 } = useMessageUnreadCount()
   
   // Refs for dropdown containers
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -174,11 +176,18 @@ export default function PortalHeader() {
                       )}
                     >
                       <span>{item.label}</span>
-                      {item.badge && (
-                        <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-sm">
-                          {item.badge}
-                        </span>
-                      )}
+                      <span className="flex items-center gap-2">
+                        {item.to === '/dashboard/messages' && messageUnread > 0 && (
+                          <span className="min-w-5 h-5 px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
+                            {messageUnread > 99 ? '99+' : messageUnread}
+                          </span>
+                        )}
+                        {item.badge && (
+                          <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-sm">
+                            {item.badge}
+                          </span>
+                        )}
+                      </span>
                     </Link>
                   ))}
                   <div className="border-t border-border mt-2 pt-2">
@@ -348,11 +357,18 @@ export default function PortalHeader() {
                 )}
               >
                 <span>{item.label}</span>
-                {item.badge && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-sm">
-                    {item.badge}
-                  </span>
-                )}
+                <span className="flex items-center gap-2">
+                  {item.to === '/dashboard/messages' && messageUnread > 0 && (
+                    <span className="min-w-5 h-5 px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
+                      {messageUnread > 99 ? '99+' : messageUnread}
+                    </span>
+                  )}
+                  {item.badge && (
+                    <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-sm">
+                      {item.badge}
+                    </span>
+                  )}
+                </span>
               </Link>
             ))}
           </div>

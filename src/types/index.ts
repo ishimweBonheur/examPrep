@@ -143,9 +143,13 @@ export interface Message {
   id: string
   sender_id: string
   receiver_id: string
+  conversation_id: string
   subject: string
   content: string
   is_read: boolean
+  delivered_date?: string
+  sender_name?: string
+  sender_role?: string
   created_date: string
 }
 

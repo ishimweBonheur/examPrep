@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
+import { fetchAdminAnalytics } from '@/api/stats'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, HelpCircle, TrendingUp, MessageSquare, FileText } from 'lucide-react'
 import { PageLoader } from '@/components/shared/LoadingSkeleton'
@@ -22,8 +23,12 @@ export default function AdminAnalytics() {
   const { data: attempts = [], isLoading: l2 } = useQuery({ queryKey: ['attempts'], queryFn: () => base44.entities.ExamAttempt.list('-created_date', 200) })
   const { data: posts = [], isLoading: l3 } = useQuery({ queryKey: ['posts'], queryFn: () => base44.entities.CommunityPost.list('-created_date', 100) })
   const { data: documents = [], isLoading: l4 } = useQuery({ queryKey: ['docs'], queryFn: () => base44.entities.Document.list() })
+  const { data: analytics, isLoading: l5 } = useQuery({
+    queryKey: ['admin-analytics'],
+    queryFn: fetchAdminAnalytics,
+  })
 
-  if (l1 || l2 || l3 || l4) return <PageLoader />
+  if (l1 || l2 || l3 || l4 || l5) return <PageLoader />
 
   const students = users.filter((u: { role: string }) => u.role === 'student')
   const avgScore = attempts.length
@@ -31,13 +36,21 @@ export default function AdminAnalytics() {
     : 0
 
   const enrollmentChart = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    datasets: [{ label: 'New Students', data: [12, 19, 15, 25, 22, students.length], backgroundColor: 'hsl(217 91% 50%)', borderRadius: 8 }],
+    labels: analytics?.enrollment.labels ?? [],
+    datasets: [{
+      label: 'New Students',
+      data: analytics?.enrollment.data ?? [],
+      backgroundColor: 'hsl(217 91% 50%)',
+      borderRadius: 8,
+    }],
   }
 
   const subjectChart = {
-    labels: ['Biology', 'Chemistry', 'Entrepreneurship'],
-    datasets: [{ data: [45, 30, 25], backgroundColor: ['hsl(217 91% 50%)', 'hsl(152 60% 45%)', 'hsl(38 95% 55%)'] }],
+    labels: analytics?.subject_distribution.labels ?? [],
+    datasets: [{
+      data: analytics?.subject_distribution.data ?? [],
+      backgroundColor: ['hsl(217 91% 50%)', 'hsl(152 60% 45%)', 'hsl(38 95% 55%)', 'hsl(280 60% 50%)', 'hsl(0 70% 55%)'],
+    }],
   }
 
   return (
@@ -70,12 +83,18 @@ export default function AdminAnalytics() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle className="text-lg">Student Enrollment</CardTitle></CardHeader>
-          <CardContent><Bar data={enrollmentChart} options={{ responsive: true, plugins: { legend: { display: false } } }} /></CardContent>
+          <CardHeader><CardTitle className="text-lg">Student Enrollment (6 months)</CardTitle></CardHeader>
+          <CardContent>
+            <Bar data={enrollmentChart} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+          </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg">Subject Distribution</CardTitle></CardHeader>
-          <CardContent className="flex justify-center"><div className="w-64"><Doughnut data={subjectChart} /></div></CardContent>
+          <CardHeader><CardTitle className="text-lg">Exam Attempts by Subject</CardTitle></CardHeader>
+          <CardContent className="flex justify-center">
+            <div className="w-64">
+              <Doughnut data={subjectChart} options={{ plugins: { legend: { position: 'bottom' } } }} />
+            </div>
+          </CardContent>
         </Card>
       </div>
 
