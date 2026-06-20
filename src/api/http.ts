@@ -167,8 +167,12 @@ export function isAuthenticated(): boolean {
   return !!getToken()
 }
 
+export function generateSubjectCover(subjectId: string) {
+  return apiPost<{ cover_image_url: string }>(`/subjects/${subjectId}/generate-cover`)
+}
+
 export function fetchPublicStats() {
-  return apiGet<PublicStats>('/stats')
+  return apiGet<PublicStats>('/stats/public')
 }
 
 export function fetchUserAchievements(userId: string) {
@@ -193,6 +197,19 @@ export function fetchUnreadNotificationCount() {
 
 export function startSubscriptionTrial() {
   return apiPost<import('@/types').Subscription>('/subscriptions/trial')
+}
+
+export function fetchPublicSubscriptionPlans() {
+  return apiGet<import('@/types').SubscriptionPlan[]>('/subscription-plans/public')
+}
+
+export function checkoutSubscription(data: {
+  plan_id: string
+  billing_cycle: 'monthly' | 'yearly'
+  payment_method: string
+  phone_number?: string
+}) {
+  return apiPost<import('@/types').Payment>('/payments/checkout', data)
 }
 
 export function approveStudent(studentId: string) {

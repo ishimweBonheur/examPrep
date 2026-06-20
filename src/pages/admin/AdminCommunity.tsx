@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { base44 } from '@/api/client'
+import { fetchCommunityPosts, deleteCommunityPost } from '@/api/community'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,24 +9,25 @@ import { useState } from 'react'
 import { formatDate } from '@/lib/format-date'
 import { PageLoader } from '@/components/shared/LoadingSkeleton'
 import toast from 'react-hot-toast'
-import type { CommunityPost } from '@/types'
 
 export default function AdminCommunity() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
 
-  const { data: posts = [], isLoading } = useQuery<CommunityPost[]>({
-    queryKey: ['community-posts'],
-    queryFn: () => base44.entities.CommunityPost.list('-created_date', 100) as Promise<CommunityPost[]>,
+  const { data, isLoading } = useQuery({
+    queryKey: ['community-posts-admin'],
+    queryFn: () => fetchCommunityPosts({ limit: 100, order: 'newest' }),
   })
+
+  const posts = data?.items ?? []
 
   const filtered = posts.filter((p) =>
     !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.content.toLowerCase().includes(search.toLowerCase())
   )
 
   const handleDelete = async (id: string) => {
-    await base44.entities.CommunityPost.delete(id)
-    queryClient.invalidateQueries({ queryKey: ['community-posts'] })
+    await deleteCommunityPost(id)
+    queryClient.invalidateQueries({ queryKey: ['community-posts-admin'] })
     toast.success('Post removed')
   }
 

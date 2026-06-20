@@ -8,7 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, BookOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, BookOpen, Sparkles, Loader2 } from 'lucide-react';
+import { generateSubjectCover } from '@/api/http';
+import { resolveMediaUrl } from '@/lib/media-url';
+import toast from 'react-hot-toast';
+import type { Subject } from '@/types';
 
 interface Topic {
   name: string;
@@ -22,18 +26,11 @@ interface SubjectForm {
   topics: Topic[];
 }
 
-interface Subject {
-  id: string;
-  name: string;
-  description?: string;
-  level: string;
-  topics?: Topic[];
-}
-
 export default function AdminSubjects() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState<boolean>(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [form, setForm] = useState<SubjectForm>({ name: '', description: '', level: 'S3', topics: [] });
   const [topicInput, setTopicInput] = useState<string>('');
 
@@ -46,13 +43,34 @@ export default function AdminSubjects() {
     if (!form.name.trim()) return;
     if (editId) {
       await base44.entities.Subject.update(editId, { ...form });
+      toast.success('Subject updated');
     } else {
-      await base44.entities.Subject.create({ ...form });
+      const created = await base44.entities.Subject.create({ ...form }) as Subject;
+      toast.success('Subject created — generating cover image for landing page…');
+      void generateSubjectCover(created.id).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['subjects'] });
+        queryClient.invalidateQueries({ queryKey: ['public-stats'] });
+      }).catch(() => undefined);
     }
     setOpen(false);
     setEditId(null);
     setForm({ name: '', description: '', level: 'S3', topics: [] });
     queryClient.invalidateQueries({ queryKey: ['subjects'] });
+    queryClient.invalidateQueries({ queryKey: ['public-stats'] });
+  };
+
+  const handleGenerateCover = async (id: string): Promise<void> => {
+    setGeneratingId(id);
+    try {
+      await generateSubjectCover(id);
+      toast.success('Cover image generated');
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: ['public-stats'] });
+    } catch {
+      toast.error('Could not generate cover image');
+    } finally {
+      setGeneratingId(null);
+    }
   };
 
   const handleEdit = (s: Subject): void => {
@@ -96,7 +114,7 @@ export default function AdminSubjects() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading font-extrabold text-2xl text-foreground">Manage Subjects</h1>
-          <p className="text-muted-foreground mt-1">Add and edit subjects and their topics.</p>
+          <p className="text-body-sm text-muted-foreground mt-1">Add subjects — AI generates a landing page cover image automatically.</p>
         </div>
         <Dialog open={open} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
@@ -146,13 +164,21 @@ export default function AdminSubjects() {
 
       <div className="grid md:grid-cols-3 gap-4">
         {subjects.map((s: Subject) => (
-          <Card key={s.id} className="border border-border">
+          <Card key={s.id} className="border border-border overflow-hidden">
+            {s.cover_image_url && (
+              <div className="h-32 overflow-hidden">
+                <img src={resolveMediaUrl(s.cover_image_url)} alt={s.name} className="w-full h-full object-cover" />
+              </div>
+            )}
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-3">
-                  <BookOpen className="w-6 h-6 text-primary" />
+                  {!s.cover_image_url && <BookOpen className="w-6 h-6 text-primary" />}
                 </div>
                 <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" title="Regenerate cover" disabled={generatingId === s.id} onClick={() => void handleGenerateCover(s.id)}>
+                    {generatingId === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => handleEdit(s)}><Pencil className="w-4 h-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => handleDelete(s.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
                 </div>

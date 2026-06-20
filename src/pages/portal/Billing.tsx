@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,12 +13,15 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth'
 import { formatDate, daysUntil } from '@/lib/format-date';
-import { startSubscriptionTrial } from '@/api/http';
+import { startSubscriptionTrial, checkoutSubscription } from '@/api/http';
+import { formatCurrency, planPrice } from '@/lib/format-currency';
 import type { SubscriptionPlan, Subscription, Payment } from '@/types';
 
 export default function Billing() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const preselectedPlanId = searchParams.get('plan');
   const [showPayment, setShowPayment] = useState<boolean>(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [billingCycle, setBillingCycle] = useState<'yearly' | 'monthly'>('yearly');
@@ -32,6 +36,7 @@ export default function Billing() {
   const { data: plans = [] } = useQuery<SubscriptionPlan[]>({
     queryKey: ['subscription-plans'],
     queryFn: () => base44.entities.SubscriptionPlan.filter({ is_active: true }, 'sort_order', 10),
+    enabled: !!user?.id,
   });
 
   const { data: subscriptions = [] } = useQuery<Subscription[]>({
@@ -66,31 +71,34 @@ export default function Billing() {
     setSuccess(false);
   };
 
+  useEffect(() => {
+    if (!preselectedPlanId || plans.length === 0) return;
+    const plan = plans.find((p) => p.id === preselectedPlanId);
+    if (plan) openPayment(plan);
+  }, [preselectedPlanId, plans]);
+
   const processPayment = async (): Promise<void> => {
     if (!selectedPlan) return;
     setProcessing(true);
 
-    const price = billingCycle === 'yearly'
-      ? (selectedPlan.price_yearly || (selectedPlan.price_monthly ?? selectedPlan.price) * 10)
-      : (selectedPlan.price_monthly ?? selectedPlan.price);
+    try {
+      await checkoutSubscription({
+        plan_id: selectedPlan.id,
+        billing_cycle: billingCycle,
+        payment_method: paymentMethod,
+        phone_number: paymentMethod === 'mobile_money' ? phoneNumber : undefined,
+      });
 
-    // Create payment record
-    await base44.entities.Payment.create({
-      student_id: user?.id,
-      plan_id: selectedPlan.id,
-      plan_name: selectedPlan.name,
-      amount: price,
-      payment_method: paymentMethod,
-      status: 'completed',
-      billing_cycle: billingCycle,
-      transaction_ref: 'PAY-' + Date.now(),
-      phone_number: paymentMethod === 'mobile_money' ? phoneNumber : undefined,
-    });
+      await queryClient.invalidateQueries({ queryKey: ['my-payments'] });
+      await queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
+      await queryClient.invalidateQueries({ queryKey: ['access-status'] });
 
-    queryClient.invalidateQueries({ queryKey: ['my-payments', 'my-subscription', 'access-status'] });
-
-    setProcessing(false);
-    setSuccess(true);
+      setSuccess(true);
+    } catch {
+      // Error surfaced by api client; keep dialog open
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleBillingToggle = (): void => {
@@ -173,7 +181,7 @@ export default function Billing() {
 
         <div className="grid md:grid-cols-3 gap-4">
           {plans.map((plan: SubscriptionPlan) => {
-            const price = billingCycle === 'yearly' ? (plan.price_yearly || (plan.price_monthly ?? plan.price) * 10) : (plan.price_monthly ?? plan.price);
+            const price = planPrice(plan, billingCycle);
             const isCurrent = currentSub?.plan_id === plan.id;
             const IconComp = iconMap[plan.name] || Shield;
             return (
@@ -183,7 +191,10 @@ export default function Billing() {
                     <IconComp className="w-6 h-6 text-primary" />
                   </div>
                   <h3 className="font-heading font-bold text-foreground">{plan.name}</h3>
-                  <p className="font-heading font-extrabold text-2xl text-foreground mt-2">${price}<span className="text-sm font-normal text-muted-foreground">/{billingCycle === 'yearly' ? 'yr' : 'mo'}</span></p>
+                  <p className="font-heading font-extrabold text-2xl text-foreground mt-2">
+                    {formatCurrency(price, plan.currency)}
+                    <span className="text-sm font-normal text-muted-foreground">/{billingCycle === 'yearly' ? 'yr' : 'mo'}</span>
+                  </p>
                   <ul className="text-left space-y-1.5 mt-4 mb-4">
                     {(plan.features || []).slice(0, 4).map((f: string, j: number) => (
                       <li key={j} className="flex items-start gap-1.5 text-xs"><CheckCircle className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />{f}</li>
@@ -220,7 +231,7 @@ export default function Billing() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-sm">${p.amount}</p>
+                    <p className="font-bold text-sm">{formatCurrency(p.amount, p.currency)}</p>
                     <Badge className={p.status === 'completed' ? 'bg-green-100 text-green-700 border-0 text-xs' : 'bg-amber-100 text-amber-700 border-0 text-xs'}>{p.status}</Badge>
                   </div>
                 </div>
@@ -256,7 +267,7 @@ export default function Billing() {
                 <div className="flex justify-between text-sm mt-1">
                   <span className="text-muted-foreground">Amount</span>
                   <span className="font-bold text-foreground">
-                    ${billingCycle === 'yearly' ? (selectedPlan?.price_yearly || (selectedPlan?.price_monthly ?? selectedPlan?.price ?? 0) * 10) : (selectedPlan?.price_monthly ?? selectedPlan?.price ?? 0)}
+                    {selectedPlan && formatCurrency(planPrice(selectedPlan, billingCycle), selectedPlan.currency)}
                   </span>
                 </div>
               </div>

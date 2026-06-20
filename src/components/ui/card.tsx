@@ -12,7 +12,7 @@ export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
 CardHeader.displayName = 'CardHeader'
 
 export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => (
-  <h3 ref={ref} className={cn('font-heading text-2xl font-semibold leading-none tracking-tight', className)} {...props} />
+  <h3 ref={ref} className={cn('font-heading text-h4 font-semibold leading-snug tracking-tight', className)} {...props} />
 ))
 CardTitle.displayName = 'CardTitle'
 

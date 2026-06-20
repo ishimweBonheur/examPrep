@@ -14,6 +14,7 @@ import {
   Plus, Pencil, Trash2, Crown, Shield, Zap, LucideIcon
 } from 'lucide-react';
 import { formatDate } from '@/lib/format-date';
+import { formatCurrency } from '@/lib/format-currency';
 import type { SubscriptionPlan, Subscription, Payment, User } from '@/types';
 
 const defaultFeatures: Record<string, string[]> = {
@@ -29,6 +30,8 @@ interface PlanForm {
   description: string;
   price_monthly: number;
   price_yearly: number;
+  duration_days: number;
+  currency: string;
   features: string[];
   recommended: boolean;
   sort_order: number;
@@ -47,7 +50,8 @@ export default function AdminBilling() {
   const [planOpen, setPlanOpen] = useState<boolean>(false);
   const [editPlan, setEditPlan] = useState<SubscriptionPlan | null>(null);
   const [planForm, setPlanForm] = useState<PlanForm>({ 
-    name: '', description: '', price_monthly: 0, price_yearly: 0, 
+    name: '', description: '', price_monthly: 0, price_yearly: 0,
+    duration_days: 30, currency: 'RWF',
     features: [], recommended: false, sort_order: 0 
   });
   const [featureInput, setFeatureInput] = useState<string>('');
@@ -81,7 +85,7 @@ export default function AdminBilling() {
   const students = users.filter((u: User) => u.role !== 'admin').length;
 
   const stats: StatItem[] = [
-    { icon: DollarSign, label: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, color: 'text-green-500', bg: 'bg-green-50' },
+    { icon: DollarSign, label: 'Total Revenue', value: formatCurrency(totalRevenue), color: 'text-green-500', bg: 'bg-green-50' },
     { icon: Users, label: 'Active Subscribers', value: activeSubs, color: 'text-blue-500', bg: 'bg-blue-50' },
     { icon: TrendingUp, label: 'Trial Users', value: trialSubs, color: 'text-amber-500', bg: 'bg-amber-50' },
     { icon: CreditCard, label: 'Total Students', value: students, color: 'text-purple-500', bg: 'bg-purple-50' },
@@ -95,6 +99,8 @@ export default function AdminBilling() {
         description: plan.description || '', 
         price_monthly: plan.price_monthly ?? plan.price,
         price_yearly: plan.price_yearly ?? (plan.price_monthly ?? plan.price) * 10,
+        duration_days: plan.duration_days ?? 30,
+        currency: plan.currency ?? 'RWF',
         features: plan.features || [],
         recommended: plan.recommended ?? false, 
         sort_order: plan.sort_order 
@@ -103,7 +109,8 @@ export default function AdminBilling() {
       setEditPlan(null);
       const name = plans.length === 0 ? 'Basic' : plans.length === 1 ? 'Premium' : 'Ultimate';
       setPlanForm({ 
-        name, description: '', price_monthly: 0, price_yearly: 0, 
+        name, description: '', price_monthly: 5000, price_yearly: 45000,
+        duration_days: 30, currency: 'RWF',
         features: defaultFeatures['Shield'] || ['Access to platform'], 
         recommended: false, sort_order: plans.length 
       });
@@ -111,25 +118,43 @@ export default function AdminBilling() {
     setPlanOpen(true);
   };
 
+  const buildPlanPayload = () => ({
+    name: planForm.name.trim(),
+    description: planForm.description,
+    price_monthly: planForm.price_monthly,
+    price_yearly: planForm.price_yearly,
+    price: planForm.price_monthly,
+    duration_days: planForm.duration_days,
+    currency: planForm.currency,
+    features: planForm.features,
+    recommended: planForm.recommended,
+    sort_order: planForm.sort_order,
+    is_active: true,
+  });
+
   const savePlan = async (): Promise<void> => {
     if (!planForm.name.trim()) return;
+    const payload = buildPlanPayload();
     if (editPlan) {
-      await base44.entities.SubscriptionPlan.update(editPlan.id, { ...planForm, is_active: true });
+      await base44.entities.SubscriptionPlan.update(editPlan.id, payload);
     } else {
-      await base44.entities.SubscriptionPlan.create({ ...planForm, is_active: true });
+      await base44.entities.SubscriptionPlan.create(payload);
     }
     setPlanOpen(false);
     queryClient.invalidateQueries({ queryKey: ['subscription-plans'] });
+    queryClient.invalidateQueries({ queryKey: ['public-subscription-plans'] });
   };
 
   const deletePlan = async (id: string): Promise<void> => {
     await base44.entities.SubscriptionPlan.delete(id);
     queryClient.invalidateQueries({ queryKey: ['subscription-plans'] });
+    queryClient.invalidateQueries({ queryKey: ['public-subscription-plans'] });
   };
 
   const togglePlanStatus = async (plan: SubscriptionPlan): Promise<void> => {
     await base44.entities.SubscriptionPlan.update(plan.id, { is_active: !plan.is_active });
     queryClient.invalidateQueries({ queryKey: ['subscription-plans'] });
+    queryClient.invalidateQueries({ queryKey: ['public-subscription-plans'] });
   };
 
   const addFeature = (): void => {
@@ -206,7 +231,7 @@ export default function AdminBilling() {
               />
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block">Monthly Price ($)</label>
+                  <label className="text-sm font-medium mb-1.5 block">Monthly Price (RWF)</label>
                   <Input 
                     type="number" 
                     value={planForm.price_monthly} 
@@ -214,11 +239,29 @@ export default function AdminBilling() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block">Yearly Price ($)</label>
+                  <label className="text-sm font-medium mb-1.5 block">Yearly Price (RWF)</label>
                   <Input 
                     type="number" 
                     value={planForm.price_yearly} 
                     onChange={(e) => setPlanForm({ ...planForm, price_yearly: parseFloat(e.target.value) || 0 })} 
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Billing period (days)</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={planForm.duration_days}
+                    onChange={(e) => setPlanForm({ ...planForm, duration_days: parseInt(e.target.value, 10) || 30 })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Currency</label>
+                  <Input
+                    value={planForm.currency}
+                    onChange={(e) => setPlanForm({ ...planForm, currency: e.target.value.toUpperCase() })}
                   />
                 </div>
               </div>
@@ -282,7 +325,7 @@ export default function AdminBilling() {
                   {plan.recommended && <Badge className="bg-primary text-white border-0 text-xs">Popular</Badge>}
                 </div>
                 <p className="text-2xl font-heading font-extrabold text-foreground">
-                  ${plan.price_monthly ?? plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                  {formatCurrency(plan.price_monthly ?? plan.price, plan.currency)}<span className="text-sm font-normal text-muted-foreground">/mo</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{subsForPlan} active subscribers</p>
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
@@ -329,7 +372,7 @@ export default function AdminBilling() {
                   <TableCell className="text-sm text-muted-foreground">
                     {s.end_date ? formatDate(s.end_date, 'short') : '—'}
                   </TableCell>
-                  <TableCell className="font-medium">${s.amount_paid || 0}</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(s.amount_paid || 0)}</TableCell>
                   <TableCell className="capitalize text-sm text-muted-foreground">{(s as Subscription & { payment_method?: string }).payment_method || '—'}</TableCell>
                 </TableRow>
               ))}
@@ -363,7 +406,7 @@ export default function AdminBilling() {
                 <TableRow key={p.id}>
                   <TableCell className="font-medium text-sm">{getStudentName(p.student_id)}</TableCell>
                   <TableCell>{p.plan_name || '—'}</TableCell>
-                  <TableCell className="font-medium">${p.amount}</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(p.amount, p.currency)}</TableCell>
                   <TableCell className="capitalize text-sm text-muted-foreground">{p.method || '—'}</TableCell>
                   <TableCell>
                     <Badge className={

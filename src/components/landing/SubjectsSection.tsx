@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Microscope, FlaskConical, Lightbulb, ArrowRight, BookOpen, Users, Star, ChevronRight, LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fetchPublicStats } from '@/api/http'
+import { resolveMediaUrl } from '@/lib/media-url'
 import type { PublicStats } from '@/types'
 
 interface SubjectDisplay {
@@ -81,7 +82,7 @@ function mapSubjects(stats: PublicStats): SubjectDisplay[] {
       topics: s.topic_count,
       questions: s.question_count > 0 ? `${s.question_count}+` : '0',
       description: s.description || `Study ${s.name} with practice questions and past papers.`,
-      image: style.image,
+      image: resolveMediaUrl(s.cover_image_url) ?? style.image,
       level: s.level,
     }
   })
@@ -144,10 +145,10 @@ export default function SubjectsSection() {
             <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
             <span className="text-primary font-semibold text-sm uppercase tracking-wider">Core Subjects</span>
           </div>
-          <h2 className="font-heading font-extrabold text-3xl md:text-4xl text-foreground">
+          <h2 className="text-h2 text-foreground">
             Our Popular Subjects
           </h2>
-          <p className="text-muted-foreground mt-3 max-w-lg mx-auto">
+          <p className="text-body text-muted-foreground mt-3 max-w-lg mx-auto">
             Prepare for national exams with question banks across {stats?.subject_count ?? subjects.length} subjects and {stats?.question_count ?? 0}+ practice questions.
           </p>
         </div>
@@ -184,7 +185,8 @@ export default function SubjectsSection() {
                 <img
                   src={currentSubject.image}
                   alt={currentSubject.name}
-                  className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+                  className="w-full h-full min-h-[220px] md:min-h-[320px] object-cover transition-transform duration-700 hover:scale-110"
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white">
@@ -243,7 +245,8 @@ export default function SubjectsSection() {
                 <img
                   src={subject.image}
                   alt={subject.name}
-                  className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                  className="w-full h-44 sm:h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className={`absolute top-4 left-4 ${subject.color} text-white text-xs font-bold px-3 py-1 rounded-sm`}>

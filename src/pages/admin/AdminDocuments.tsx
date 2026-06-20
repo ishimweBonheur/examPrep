@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { useState, useMemo, type ChangeEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { base44 } from '@/api/client'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Upload, FileText, FileImage, File, Trash2, Eye, Plus, Loader2, type LucideIcon } from 'lucide-react'
+import { Upload, FileText, FileImage, File, Trash2, Eye, Plus, Loader2, Pencil, Search, type LucideIcon } from 'lucide-react'
 import { formatDate } from '@/lib/format-date'
 import { categoryColor, categoryLabel, DOCUMENT_CATEGORY_LABELS } from '@/lib/document-categories'
-import { STUDENT_LEVELS, levelLabel } from '@/lib/student-level'
+import { ALL_ACADEMIC_LEVELS, STUDENT_LEVELS, levelLabel } from '@/lib/student-level'
+import toast from 'react-hot-toast'
 import type { Document, DocumentCategory, Subject } from '@/types'
 
 interface DocumentForm {
@@ -33,9 +34,13 @@ const ALL_FILTER = 'all'
 export default function AdminDocuments() {
   const queryClient = useQueryClient()
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editingDoc, setEditingDoc] = useState<Document | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
   const [subjectFilter, setSubjectFilter] = useState(ALL_FILTER)
   const [categoryFilter, setCategoryFilter] = useState(ALL_FILTER)
   const [levelFilter, setLevelFilter] = useState(ALL_FILTER)
@@ -55,13 +60,19 @@ export default function AdminDocuments() {
     queryFn: () => base44.entities.Subject.list() as Promise<Subject[]>,
   })
 
+  const filteredSubjects = useMemo(
+    () => subjects.filter((s) => !form.level || s.level === form.level || ALL_ACADEMIC_LEVELS.includes(form.level as typeof ALL_ACADEMIC_LEVELS[number])),
+    [subjects, form.level]
+  )
+
   const { data: documents = [], isLoading } = useQuery<Document[]>({
-    queryKey: ['admin-documents', subjectFilter, categoryFilter, levelFilter],
+    queryKey: ['admin-documents', subjectFilter, categoryFilter, levelFilter, searchQuery],
     queryFn: async () => {
       const query: Record<string, string> = {}
       if (subjectFilter !== ALL_FILTER) query.subject_id = subjectFilter
       if (categoryFilter !== ALL_FILTER) query.category = categoryFilter
       if (levelFilter !== ALL_FILTER) query.level = levelFilter
+      if (searchQuery.trim()) query.search = searchQuery.trim()
       return Object.keys(query).length > 0
         ? (base44.entities.Document.filter(query, '-created_date', 200) as Promise<Document[]>)
         : (base44.entities.Document.list('-created_date', 200) as Promise<Document[]>)
@@ -72,9 +83,20 @@ export default function AdminDocuments() {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
-    const { file_url } = await base44.integrations.Core.UploadFile({ file })
-    setForm((prev) => ({ ...prev, [field]: file_url }))
-    setUploading(false)
+    setUploadProgress(10)
+    try {
+      const interval = setInterval(() => setUploadProgress((p) => Math.min(p + 15, 90)), 200)
+      const { file_url } = await base44.integrations.Core.UploadFile({ file })
+      clearInterval(interval)
+      setUploadProgress(100)
+      setForm((prev) => ({ ...prev, [field]: file_url }))
+      toast.success('File uploaded')
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+      setTimeout(() => setUploadProgress(0), 500)
+    }
   }
 
   const resetForm = () => {
@@ -90,18 +112,68 @@ export default function AdminDocuments() {
     })
   }
 
+  const openUpload = (preset: DocumentCategory = 'past_paper') => {
+    setForm({
+      title: '',
+      description: '',
+      subject_id: '',
+      topic: '',
+      year: new Date().getFullYear(),
+      category: preset,
+      level: 'S3',
+      file_type: 'pdf',
+    })
+    setUploadOpen(true)
+  }
+
   const handleSave = async () => {
-    if (!form.title.trim() || !form.subject_id || !form.file_url) return
+    if (!form.title.trim() || !form.subject_id || !form.file_url) {
+      toast.error('Title, subject, and file are required')
+      return
+    }
     const subjectName = subjects.find((s) => s.id === form.subject_id)?.name || ''
     await base44.entities.Document.create({ ...form, subject_name: subjectName })
     setUploadOpen(false)
     resetForm()
     queryClient.invalidateQueries({ queryKey: ['admin-documents'] })
+    queryClient.invalidateQueries({ queryKey: ['public-stats'] })
+    toast.success(form.category === 'syllabus' ? 'Course of study published — footer updated' : 'Document saved')
+  }
+
+  const handleUpdate = async () => {
+    if (!editingDoc) return
+    const subjectName = subjects.find((s) => s.id === form.subject_id)?.name || ''
+    await base44.entities.Document.update(editingDoc.id, { ...form, subject_name: subjectName })
+    setEditOpen(false)
+    setEditingDoc(null)
+    resetForm()
+    queryClient.invalidateQueries({ queryKey: ['admin-documents'] })
+    queryClient.invalidateQueries({ queryKey: ['public-stats'] })
+    toast.success('Document updated')
+  }
+
+  const openEdit = (doc: Document) => {
+    setEditingDoc(doc)
+    setForm({
+      title: doc.title,
+      description: doc.description || '',
+      subject_id: doc.subject_id,
+      topic: doc.topic || '',
+      year: doc.year,
+      category: doc.category,
+      level: doc.level,
+      file_type: doc.file_type,
+      file_url: doc.file_url,
+      solution_url: doc.solution_url,
+    })
+    setEditOpen(true)
   }
 
   const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this document?')) return
     await base44.entities.Document.delete(id)
     queryClient.invalidateQueries({ queryKey: ['admin-documents'] })
+    toast.success('Document deleted')
   }
 
   const fileTypeIcons: Record<string, LucideIcon> = {
@@ -120,12 +192,21 @@ export default function AdminDocuments() {
             Upload past papers, solutions, study notes, revision guides, and courses of study.
           </p>
         </div>
-        <Button onClick={() => setUploadOpen(true)} className="bg-primary rounded-xl gap-2">
+        <div className="flex gap-2 flex-wrap">
+        <Button onClick={() => openUpload('syllabus')} variant="outline" className="rounded-xl gap-2">
+          <Plus className="w-4 h-4" /> Upload Course
+        </Button>
+        <Button onClick={() => openUpload('past_paper')} className="bg-primary rounded-xl gap-2">
           <Plus className="w-4 h-4" /> Upload Document
         </Button>
+        </div>
       </div>
 
       <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search documents..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+        </div>
         <Select value={subjectFilter} onValueChange={setSubjectFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All Subjects" /></SelectTrigger>
           <SelectContent>
@@ -160,7 +241,7 @@ export default function AdminDocuments() {
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Upload Document</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{form.category === 'syllabus' ? 'Upload Course of Study' : 'Upload Document'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <Input placeholder="Title (e.g. Biology 2022 National Exam)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <Textarea placeholder="Description (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
@@ -170,7 +251,7 @@ export default function AdminDocuments() {
                 <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    {filteredSubjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.level})</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -193,10 +274,10 @@ export default function AdminDocuments() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Level</label>
-                <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
+                <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v, subject_id: '' })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {['S1', 'S2', 'S3', 'S6'].map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                    {ALL_ACADEMIC_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -225,9 +306,21 @@ export default function AdminDocuments() {
                   </div>
                 ) : (
                   <>
-                    {uploading ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /> : <Upload className="w-6 h-6 mx-auto text-muted-foreground" />}
-                    <p className="text-sm text-muted-foreground mt-1">Click to upload PDF or image</p>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" onChange={(e) => handleFileUpload(e, 'file_url')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    {uploading ? (
+                      <div className="space-y-2">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+                        <div className="h-2 bg-muted rounded-full overflow-hidden max-w-xs mx-auto">
+                          <div className="h-full bg-primary transition-all" style={{ width: `${uploadProgress}%` }} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{uploadProgress}%</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mt-1">Click to upload PDF or image</p>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" onChange={(e) => handleFileUpload(e, 'file_url')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -258,6 +351,31 @@ export default function AdminDocuments() {
             <Button onClick={handleSave} disabled={!form.title.trim() || !form.subject_id || !form.file_url || uploading} className="w-full bg-primary">
               Save Document
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Document</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Textarea placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
+            <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Subject" /></SelectTrigger>
+              <SelectContent>
+                {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as DocumentCategory })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(Object.keys(DOCUMENT_CATEGORY_LABELS) as DocumentCategory[]).map((key) => (
+                  <SelectItem key={key} value={key}>{DOCUMENT_CATEGORY_LABELS[key]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={() => void handleUpdate()} className="w-full bg-primary">Save changes</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -312,6 +430,9 @@ export default function AdminDocuments() {
                       <TableCell className="text-sm text-muted-foreground">{formatDate(doc.created_date, 'short')}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(doc)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
                           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setPreviewDoc(doc); setPreviewOpen(true) }}>
                             <Eye className="w-3.5 h-3.5" />
                           </Button>

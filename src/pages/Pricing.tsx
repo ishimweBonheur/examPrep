@@ -5,23 +5,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/client';
+import { fetchPublicSubscriptionPlans, isAuthenticated } from '@/api/http';
+import { formatCurrency, planPrice } from '@/lib/format-currency';
 import type { SubscriptionPlan } from '@/types';
+
 interface ColorScheme {
   bg: string;
   text: string;
   border: string;
 }
 
+const planIcons: LucideIcon[] = [Shield, Zap, Crown];
+
 export default function Pricing() {
   const [billingCycle, setBillingCycle] = useState<'yearly' | 'monthly'>('yearly');
+  const loggedIn = isAuthenticated();
 
-  const { data: plans = [], isLoading } = useQuery<SubscriptionPlan[]>({
-    queryKey: ['subscription-plans'],
-    queryFn: () => base44.entities.SubscriptionPlan.filter({ is_active: true }, 'sort_order', 10),
+  const { data: plans = [], isLoading, isError } = useQuery<SubscriptionPlan[]>({
+    queryKey: ['public-subscription-plans'],
+    queryFn: fetchPublicSubscriptionPlans,
+    staleTime: 60_000,
   });
 
-  const iconMap: Record<string, LucideIcon> = { Shield: Shield, Zap: Zap, Crown: Crown };
   const colorMap: ColorScheme[] = [
     { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
     { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' },
@@ -30,6 +35,11 @@ export default function Pricing() {
 
   const handleBillingToggle = (): void => {
     setBillingCycle(prev => prev === 'monthly' ? 'yearly' : 'monthly');
+  };
+
+  const planCta = (planId: string) => {
+    if (loggedIn) return `/dashboard/billing?plan=${planId}`;
+    return `/register?plan=${planId}`;
   };
 
   return (
@@ -45,12 +55,12 @@ export default function Pricing() {
             </p>
           </div>
 
-          {/* Billing toggle */}
           <div className="flex items-center justify-center gap-3 mb-12">
             <span className={`text-sm font-medium ${billingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>Monthly</span>
             <button
               onClick={handleBillingToggle}
               className="w-14 h-7 bg-primary rounded-full relative transition-colors"
+              aria-label="Toggle billing cycle"
             >
               <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${billingCycle === 'yearly' ? 'translate-x-8' : 'translate-x-1'}`} />
             </button>
@@ -63,12 +73,20 @@ export default function Pricing() {
             <div className="grid md:grid-cols-3 gap-6">
               {[1,2,3].map(i => <Card key={i} className="animate-pulse"><CardContent className="p-8 h-96" /></Card>)}
             </div>
+          ) : isError || plans.length === 0 ? (
+            <div className="text-center py-12 max-w-md mx-auto">
+              <p className="text-muted-foreground">
+                {isError
+                  ? 'Unable to load plans right now. Please try again later.'
+                  : 'Learning plans are being configured. Check back soon or contact support.'}
+              </p>
+            </div>
           ) : (
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className={`grid gap-6 max-w-5xl mx-auto ${plans.length >= 3 ? 'md:grid-cols-3' : plans.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
               {plans.map((plan: SubscriptionPlan, i: number) => {
-                const price = billingCycle === 'yearly' ? (plan.price_yearly || plan.price_monthly * 10) : plan.price_monthly;
-                const IconComp = iconMap[plan.name] || Shield;
-                const colors = colorMap[i] || colorMap[0];
+                const price = planPrice(plan, billingCycle);
+                const IconComp = planIcons[i % planIcons.length];
+                const colors = colorMap[i % colorMap.length];
                 
                 return (
                   <Card 
@@ -90,7 +108,7 @@ export default function Pricing() {
 
                       <div className="mt-6 mb-6">
                         <span className="font-heading font-extrabold text-4xl text-foreground">
-                          ${price}
+                          {formatCurrency(price, plan.currency)}
                         </span>
                         <span className="text-muted-foreground">/{billingCycle === 'yearly' ? 'year' : 'mo'}</span>
                       </div>
@@ -104,7 +122,7 @@ export default function Pricing() {
                         ))}
                       </ul>
 
-                      <Link to="/register">
+                      <Link to={planCta(plan.id)}>
                         <Button 
                           className={`w-full rounded-xl h-12 gap-2 font-semibold ${
                             plan.recommended 
@@ -112,7 +130,7 @@ export default function Pricing() {
                               : 'bg-foreground hover:bg-foreground/90'
                           }`}
                         >
-                          Start Free Trial <ArrowRight className="w-4 h-4" />
+                          {loggedIn ? 'Subscribe Now' : 'Start Free Trial'} <ArrowRight className="w-4 h-4" />
                         </Button>
                       </Link>
                       <p className="text-xs text-muted-foreground mt-2">7-day free trial, cancel anytime</p>

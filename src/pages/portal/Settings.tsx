@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/hooks/use-auth'
-import { fetchUserSettings, updateUserSettings, requestClassLevelChange, fetchMyClassLevelRequests } from '@/api/http'
+import { fetchUserSettings, updateUserSettings, requestClassLevelChange, fetchMyClassLevelRequests, apiDelete } from '@/api/http'
 import toast from 'react-hot-toast'
 import { Bell, Shield, GraduationCap, Globe, Loader2 } from 'lucide-react'
 import { STUDENT_LEVELS, levelLabel } from '@/lib/student-level'
@@ -18,9 +18,9 @@ export default function Settings() {
   const [pendingLevel, setPendingLevel] = useState<StudentLevel | null>(null)
   const level = pendingLevel ?? user?.level ?? 'S3'
   const [savingLevel, setSavingLevel] = useState(false)
-  const [savingSettings, setSavingSettings] = useState(false)
+  const [savingKey, setSavingKey] = useState<string | null>(null)
 
-  const { data: settings, isLoading: loadingSettings } = useQuery({
+  const { data: settings, isLoading: loadingSettings, isError } = useQuery({
     queryKey: ['user-settings', user?.id],
     queryFn: fetchUserSettings,
     enabled: !!user?.id,
@@ -34,23 +34,31 @@ export default function Settings() {
 
   const pendingRequest = levelRequests.find((r) => r.status === 'pending')
 
-  const persistSettings = async (patch: Parameters<typeof updateUserSettings>[0]) => {
-    setSavingSettings(true)
+  const persistSettings = async (patch: Parameters<typeof updateUserSettings>[0], key: string) => {
+    setSavingKey(key)
     try {
       await updateUserSettings(patch)
-      queryClient.invalidateQueries({ queryKey: ['user-settings'] })
+      await queryClient.invalidateQueries({ queryKey: ['user-settings'] })
       toast.success('Settings saved')
     } catch {
       toast.error('Could not save settings')
     } finally {
-      setSavingSettings(false)
+      setSavingKey(null)
     }
   }
 
   const handleLogout = () => logout(true)
 
-  const handleDeleteAccount = () => {
-    toast.error('Account deletion requires backend confirmation.')
+  const handleDeleteAccount = async () => {
+    if (!user?.id) return
+    if (!window.confirm('Delete your account permanently? This cannot be undone.')) return
+    try {
+      await apiDelete(`/users/${user.id}`)
+      toast.success('Account deleted')
+      logout(true)
+    } catch {
+      toast.error('Could not delete account')
+    }
   }
 
   const handleLevelChange = async (value: StudentLevel) => {
@@ -70,12 +78,18 @@ export default function Settings() {
     }
   }
 
+  const saving = (key: string) => savingKey === key
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="font-heading font-extrabold text-2xl md:text-3xl">Settings</h1>
         <p className="text-muted-foreground mt-1">Customize your ExamPrep experience.</p>
       </div>
+
+      {isError && (
+        <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">Could not load settings. Please refresh.</p>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><GraduationCap className="w-5 h-5" /> Class Level</CardTitle></CardHeader>
@@ -106,28 +120,26 @@ export default function Settings() {
             <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>
           ) : (
             <>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="email-notifs">Email notifications</Label>
-                <Switch
-                  id="email-notifs"
-                  checked={settings?.email_notifications ?? true}
-                  disabled={savingSettings}
-                  onCheckedChange={(v) => {
-                    void persistSettings({ email_notifications: v })
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="push-notifs">Push notifications</Label>
-                <Switch
-                  id="push-notifs"
-                  checked={settings?.push_notifications ?? true}
-                  disabled={savingSettings}
-                  onCheckedChange={(v) => {
-                    void persistSettings({ push_notifications: v })
-                  }}
-                />
-              </div>
+              {[
+                { id: 'email-notifs', key: 'email', label: 'Email notifications', field: 'email_notifications' as const },
+                { id: 'push-notifs', key: 'push', label: 'Push notifications', field: 'push_notifications' as const },
+                { id: 'learning-reminders', key: 'learning', label: 'Learning reminders', field: 'learning_reminders' as const },
+                { id: 'community-notifs', key: 'community', label: 'Community notifications', field: 'community_notifications' as const },
+                { id: 'result-notifs', key: 'result', label: 'Result notifications', field: 'result_notifications' as const },
+              ].map(({ id, key, label, field }) => (
+                <div key={id} className="flex items-center justify-between">
+                  <Label htmlFor={id}>{label}</Label>
+                  <div className="flex items-center gap-2">
+                    {saving(key) && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                    <Switch
+                      id={id}
+                      checked={settings?.[field] ?? true}
+                      disabled={!!savingKey}
+                      onCheckedChange={(v) => void persistSettings({ [field]: v }, key)}
+                    />
+                  </div>
+                </div>
+              ))}
             </>
           )}
         </CardContent>
@@ -141,11 +153,10 @@ export default function Settings() {
             <Select
               value={settings?.profile_visibility ?? 'public'}
               onValueChange={(v) => {
-                const val = v as 'public' | 'private' | 'friends'
-                void persistSettings({ profile_visibility: val })
+                void persistSettings({ profile_visibility: v as 'public' | 'private' | 'friends' }, 'visibility')
               }}
             >
-              <SelectTrigger className={savingSettings ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
+              <SelectTrigger className={savingKey ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="public">Public — visible to community</SelectItem>
                 <SelectItem value="friends">Friends only</SelectItem>
@@ -158,10 +169,8 @@ export default function Settings() {
             <Switch
               id="show-progress"
               checked={settings?.show_progress ?? true}
-              disabled={savingSettings}
-              onCheckedChange={(v) => {
-                void persistSettings({ show_progress: v })
-              }}
+              disabled={!!savingKey}
+              onCheckedChange={(v) => void persistSettings({ show_progress: v }, 'progress')}
             />
           </div>
         </CardContent>
@@ -174,11 +183,9 @@ export default function Settings() {
             <Label>Language</Label>
             <Select
               value={settings?.language ?? 'en'}
-              onValueChange={(v) => {
-                void persistSettings({ language: v })
-              }}
+              onValueChange={(v) => void persistSettings({ language: v }, 'language')}
             >
-              <SelectTrigger className={savingSettings ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
+              <SelectTrigger className={savingKey ? 'opacity-60 pointer-events-none' : ''}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
                 <SelectItem value="rw">Kinyarwanda</SelectItem>
@@ -194,7 +201,7 @@ export default function Settings() {
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">Signed in as <strong>{user?.email}</strong></p>
           <Button variant="outline" onClick={handleLogout} className="w-full">Sign out</Button>
-          <Button variant="destructive" onClick={handleDeleteAccount} className="w-full">Delete account</Button>
+          <Button variant="destructive" onClick={() => void handleDeleteAccount()} className="w-full">Delete account</Button>
         </CardContent>
       </Card>
     </div>

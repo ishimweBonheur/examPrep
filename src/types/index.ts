@@ -16,6 +16,9 @@ export interface User {
 export interface UserSettings {
   email_notifications: boolean
   push_notifications: boolean
+  learning_reminders: boolean
+  community_notifications: boolean
+  result_notifications: boolean
   profile_visibility: 'public' | 'private' | 'friends'
   show_progress: boolean
   language: string
@@ -49,6 +52,7 @@ export interface Subject {
   name: string
   description?: string
   icon?: string
+  cover_image_url?: string
   level: 'S1' | 'S2' | 'S3' | 'S6'
   topics?: Topic[]
   progress?: number
@@ -113,10 +117,15 @@ export interface ExamAttempt {
 }
 
 export interface CommunityReply {
+  id: string
   author_id: string
   author_name: string
+  author_reputation?: number
   content: string
   is_teacher: boolean
+  parent_reply_id?: string
+  upvotes?: number
+  downvotes?: number
   created_at: string
 }
 
@@ -125,13 +134,16 @@ export interface CommunityPost {
   author_id: string
   author_name: string
   author_role?: string
+  author_reputation?: number
   title: string
   content: string
   subject_tag?: string
   tags?: string[]
+  level?: string
   upvotes: number
   downvotes: number
   comment_count: number
+  accepted_reply_id?: string
   replies?: CommunityReply[]
   is_teacher_only?: boolean
   is_saved?: boolean
@@ -250,9 +262,18 @@ export interface PublicStats {
     name: string
     description?: string
     icon?: string
+    cover_image_url?: string
     level: string
     topic_count: number
     question_count: number
+  }>
+  courses: Array<{
+    id: string
+    title: string
+    level: string
+    subject_name: string
+    subject_id: string
+    file_url?: string
   }>
 }
 
