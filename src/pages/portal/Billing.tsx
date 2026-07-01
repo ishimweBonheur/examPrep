@@ -1,19 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  CreditCard, Smartphone, CheckCircle, Clock, AlertCircle, 
-  Crown, Shield, Zap, Loader2, ArrowRight, LucideIcon 
+import {
+  CreditCard, Smartphone, CheckCircle, Clock, AlertCircle,
+  Crown, Shield, Zap, ArrowRight, LucideIcon, Hourglass,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth'
 import { formatDate, daysUntil } from '@/lib/format-date';
-import { startSubscriptionTrial, checkoutSubscription } from '@/api/http';
+import { startSubscriptionTrial } from '@/api/http';
 import { formatCurrency, planPrice } from '@/lib/format-currency';
 import type { SubscriptionPlan, Subscription, Payment } from '@/types';
 
@@ -22,16 +21,9 @@ export default function Billing() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const preselectedPlanId = searchParams.get('plan');
-  const [showPayment, setShowPayment] = useState<boolean>(false);
+  const [showComingSoon, setShowComingSoon] = useState<boolean>(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [billingCycle, setBillingCycle] = useState<'yearly' | 'monthly'>('yearly');
-  const [paymentMethod, setPaymentMethod] = useState<string>('mobile_money');
-  const [phoneNumber, setPhoneNumber] = useState<string>('');
-  const [cardNumber, setCardNumber] = useState<string>('');
-  const [cardExpiry, setCardExpiry] = useState<string>('');
-  const [cardCvc, setCardCvc] = useState<string>('');
-  const [processing, setProcessing] = useState<boolean>(false);
-  const [success, setSuccess] = useState<boolean>(false);
 
   const { data: plans = [] } = useQuery<SubscriptionPlan[]>({
     queryKey: ['subscription-plans'],
@@ -67,8 +59,7 @@ export default function Billing() {
 
   const openPayment = (plan: SubscriptionPlan): void => {
     setSelectedPlan(plan);
-    setShowPayment(true);
-    setSuccess(false);
+    setShowComingSoon(true);
   };
 
   useEffect(() => {
@@ -76,30 +67,6 @@ export default function Billing() {
     const plan = plans.find((p) => p.id === preselectedPlanId);
     if (plan) openPayment(plan);
   }, [preselectedPlanId, plans]);
-
-  const processPayment = async (): Promise<void> => {
-    if (!selectedPlan) return;
-    setProcessing(true);
-
-    try {
-      await checkoutSubscription({
-        plan_id: selectedPlan.id,
-        billing_cycle: billingCycle,
-        payment_method: paymentMethod,
-        phone_number: paymentMethod === 'mobile_money' ? phoneNumber : undefined,
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['my-payments'] });
-      await queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
-      await queryClient.invalidateQueries({ queryKey: ['access-status'] });
-
-      setSuccess(true);
-    } catch {
-      // Error surfaced by api client; keep dialog open
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   const handleBillingToggle = (): void => {
     setBillingCycle(prev => prev === 'monthly' ? 'yearly' : 'monthly');
@@ -114,7 +81,6 @@ export default function Billing() {
         <p className="text-muted-foreground mt-1">Manage your plan and payments.</p>
       </div>
 
-      {/* Current status */}
       <Card className={`border-2 ${isActive ? 'border-green-200' : isTrial ? 'border-amber-200' : 'border-border'}`}>
         <CardContent className="p-6">
           <div className="flex items-start justify-between flex-wrap gap-4">
@@ -125,7 +91,7 @@ export default function Billing() {
                 {isExpired && <Badge className="bg-red-100 text-red-700 border-0 gap-1"><AlertCircle className="w-3 h-3" /> Inactive</Badge>}
                 {hasNoSub && <Badge className="bg-muted text-muted-foreground border-0 gap-1"><Clock className="w-3 h-3" /> No Plan</Badge>}
               </div>
-              
+
               {currentSub?.plan_name ? (
                 <>
                   <h3 className="font-heading font-bold text-lg text-foreground">{currentSub.plan_name} Plan</h3>
@@ -151,7 +117,7 @@ export default function Billing() {
                 </>
               )}
             </div>
-            
+
             {currentSub?.payment_method && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 {currentSub.payment_method === 'stripe' ? <CreditCard className="w-4 h-4" /> : <Smartphone className="w-4 h-4" />}
@@ -163,7 +129,6 @@ export default function Billing() {
         </CardContent>
       </Card>
 
-      {/* Plans */}
       <div>
         <h2 className="font-heading font-bold text-lg mb-4">
           {currentSub ? 'Upgrade Your Plan' : 'Choose a Plan'}
@@ -215,7 +180,6 @@ export default function Billing() {
         </div>
       </div>
 
-      {/* Payment History */}
       {payments.length > 0 && (
         <Card className="border border-border">
           <CardHeader><CardTitle className="font-heading text-lg">Payment History</CardTitle></CardHeader>
@@ -241,96 +205,33 @@ export default function Billing() {
         </Card>
       )}
 
-      {/* Payment Dialog */}
-      <Dialog open={showPayment} onOpenChange={setShowPayment}>
+      <Dialog open={showComingSoon} onOpenChange={setShowComingSoon}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{success ? 'Payment Successful!' : 'Complete Payment'}</DialogTitle>
+            <DialogTitle>Payments Coming Soon</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Online payments are not available yet. Please wait for admin approval.
+            </p>
           </DialogHeader>
 
-          {success ? (
-            <div className="text-center py-6">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="font-heading font-bold text-lg text-foreground">Thank You!</h3>
-              <p className="text-sm text-muted-foreground mt-2">
-                Your subscription to {selectedPlan?.name} is now active. Happy learning!
+          <div className="text-center py-4">
+            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Hourglass className="w-8 h-8 text-amber-600" />
+            </div>
+            {selectedPlan && (
+              <p className="text-sm text-muted-foreground mb-2">
+                You selected the <span className="font-semibold text-foreground">{selectedPlan.name}</span> plan
+                ({billingCycle}) — {formatCurrency(planPrice(selectedPlan, billingCycle), selectedPlan.currency)}.
               </p>
-              <Button onClick={() => setShowPayment(false)} className="mt-6 bg-primary rounded-xl">Continue Learning</Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-muted">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Plan</span>
-                  <span className="font-medium">{selectedPlan?.name} ({billingCycle})</span>
-                </div>
-                <div className="flex justify-between text-sm mt-1">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span className="font-bold text-foreground">
-                    {selectedPlan && formatCurrency(planPrice(selectedPlan, billingCycle), selectedPlan.currency)}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Payment Method</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setPaymentMethod('mobile_money')}
-                    className={`p-3 rounded-xl border-2 text-center transition-all ${paymentMethod === 'mobile_money' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}
-                  >
-                    <Smartphone className="w-6 h-6 mx-auto mb-1 text-amber-500" />
-                    <span className="text-xs font-medium">Mobile Money</span>
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod('stripe')}
-                    className={`p-3 rounded-xl border-2 text-center transition-all ${paymentMethod === 'stripe' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}
-                  >
-                    <CreditCard className="w-6 h-6 mx-auto mb-1 text-blue-500" />
-                    <span className="text-xs font-medium">Credit Card</span>
-                  </button>
-                </div>
-              </div>
-
-              {paymentMethod === 'mobile_money' ? (
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block">Phone Number</label>
-                  <Input 
-                    placeholder="+250 7XX XXX XXX" 
-                    value={phoneNumber} 
-                    onChange={(e) => setPhoneNumber(e.target.value)} 
-                    className="rounded-xl"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1.5">You'll receive a payment prompt on your phone.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium mb-1.5 block">Card Number</label>
-                    <Input placeholder="4242 4242 4242 4242" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} className="rounded-xl" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm font-medium mb-1.5 block">Expiry</label>
-                      <Input placeholder="MM/YY" value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} className="rounded-xl" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-1.5 block">CVC</label>
-                      <Input placeholder="123" value={cardCvc} onChange={(e) => setCardCvc(e.target.value)} className="rounded-xl" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <Button 
-                onClick={processPayment} 
-                disabled={processing || (paymentMethod === 'mobile_money' && !phoneNumber.trim())} 
-                className="w-full bg-primary rounded-xl h-12 gap-2"
-              >
-                {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <>Pay Now <ArrowRight className="w-4 h-4" /></>}
-              </Button>
-            </div>
-          )}
+            )}
+            <p className="text-sm text-muted-foreground">
+              Our team is setting up payment methods. You will be notified once payments are enabled.
+              In the meantime, please contact an administrator for manual approval.
+            </p>
+            <Button onClick={() => setShowComingSoon(false)} className="mt-6 bg-primary rounded-xl">
+              Got it
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
