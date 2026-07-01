@@ -17,7 +17,7 @@ export default function Demo() {
         <div className="text-center space-y-3">
           <h1 className="font-heading font-extrabold text-3xl md:text-4xl">Watch Demo</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Learn how to use ExamPrep — from registration and class selection to practice, mock exams, resources, and billing.
+            Learn how to use UMUZI — from registration and class selection to practice, mock exams, resources, and billing.
           </p>
         </div>
 

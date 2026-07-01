@@ -106,7 +106,7 @@ export default function HelpCenter() {
 
       <Card>
         <CardContent className="p-4 text-sm text-muted-foreground">
-          New to ExamPrep? <Link to="/demo" className="text-primary font-medium hover:underline">Watch the platform demo</Link> for a guided tour of all features.
+          New to UMUZI? <Link to="/demo" className="text-primary font-medium hover:underline">Watch the platform demo</Link> for a guided tour of all features.
         </CardContent>
       </Card>
     </div>

@@ -84,7 +84,7 @@ export default function Settings() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="font-heading font-extrabold text-2xl md:text-3xl">Settings</h1>
-        <p className="text-muted-foreground mt-1">Customize your ExamPrep experience.</p>
+        <p className="text-muted-foreground mt-1">Customize your UMUZI experience.</p>
       </div>
 
       {isError && (

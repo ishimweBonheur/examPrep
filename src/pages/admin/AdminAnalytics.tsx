@@ -47,7 +47,7 @@ export default function AdminAnalytics() {
 
   const exportReport = () => {
     const lines = [
-      'ExamPrep Admin Analytics Report',
+      'UMUZI Admin Analytics Report',
       new Date().toLocaleString(),
       '',
       `Total attempts: ${analytics?.kpis.total_attempts ?? 0}`,

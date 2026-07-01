@@ -37,7 +37,7 @@ export default function Results() {
   const downloadReport = () => {
     if (!results) return
     const lines = [
-      'ExamPrep Performance Report',
+      'UMUZI Performance Report',
       `Student: ${user?.full_name ?? 'Student'}`,
       `Generated: ${new Date().toLocaleDateString()}`,
       '',

@@ -130,7 +130,7 @@ export default function Community() {
               Learn Together, Succeed Together
             </h1>
             <p className="text-muted-foreground mt-4 max-w-2xl mx-auto text-lg leading-relaxed">
-              ExamPrep.rw is more than practice questions — it is a community of learners helping each other
+              UMUZI is more than practice questions — it is a community of learners helping each other
               prepare for national exams with confidence.
             </p>
           </div>

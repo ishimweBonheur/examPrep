@@ -96,7 +96,7 @@ export default function AdminSidebar({
           </div>
           {!collapsed && (
             <span className="font-heading font-extrabold text-lg text-foreground tracking-tight truncate">
-              ExamPrep<span className="text-primary">.rw</span>
+              UMUZI
             </span>
           )}
         </Link>

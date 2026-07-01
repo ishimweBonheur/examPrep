@@ -34,7 +34,7 @@ export default function Footer() {
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
               <span className="font-heading font-bold text-xl text-white group-hover:text-primary/90 transition-colors">
-                ExamPrep<span className="text-primary">.rw</span>
+                UMUZI
               </span>
             </Link>
             <p className="text-body-sm leading-relaxed opacity-70 max-w-sm hover:opacity-100 transition-opacity">
@@ -127,7 +127,7 @@ export default function Footer() {
       <div className="border-t border-white/10 py-6">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-caption opacity-50">
-            © 2026 ExamPrep Rwanda — Made with 💜 for Rwandan students
+            © 2026 UMUZI — Made for Rwandan students
           </p>
         </div>
       </div>

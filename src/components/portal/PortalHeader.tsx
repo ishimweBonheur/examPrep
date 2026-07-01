@@ -122,7 +122,7 @@ export default function PortalHeader() {
             </div>
             <div className="hidden sm:block">
               <span className="font-heading font-extrabold text-lg lg:text-xl text-foreground leading-tight">
-                ExamPrep
+                UMUZI
               </span>
              
             </div>

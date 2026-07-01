@@ -40,7 +40,7 @@ export default function Navbar() {
               </div>
               <div className="flex flex-col">
                 <span className="font-heading font-extrabold text-lg text-foreground tracking-tight leading-tight">
-                  ExamPrep<span className="text-primary"></span>
+                  UMUZI
                 </span>
             
               </div>
